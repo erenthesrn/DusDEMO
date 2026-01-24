@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'quiz_screen.dart';
+import 'login_screen.dart';
 
 void main() {
   runApp(const DusApp());
@@ -18,7 +19,8 @@ class DusApp extends StatelessWidget {
         primaryColor: const Color(0xFF007AFF),
         fontFamily: 'Roboto',
       ),
-      home: const QuizScreen(), //Başlangıçta quizscreen ekranını aç.
+      home: LoginPage(), //Başlangıçta quizscreen ekranını aç.
     );
   }
 }
+
