@@ -17,7 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color.fromARGB(255, 224, 247, 250),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -26,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Image.asset('assets/images/logo.png',height: 120,),
+                Image.asset('assets/images/logo.png',height: 200,),
                 const SizedBox(height: 16),
                 Text('DUS Asistanı', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
                 const SizedBox(height: 8),
