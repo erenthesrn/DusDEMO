@@ -1,4 +1,6 @@
 // lib/main.dart
+import 'package:dus_app_1/screens/quiz_screen.dart';
+
 import 'screens/home_screen.dart'; 
 import 'package:flutter/material.dart';
 import 'screens/login_page.dart'; 
@@ -50,7 +52,7 @@ class DusApp extends StatelessWidget {
       ),
       // Uygulama LoginPage ile başlar (Burada const olmamasına dikkat ettik)
       //home: const LoginPage(), 
-      home: const HomeScreen(), // <-- TASARIM SÜRECİ BİTİNCE ÇIKAR ANA MENÜYÜ AÇIYOR
+      home: const LoginPage(), // <-- TASARIM SÜRECİ BİTİNCE ÇIKAR ANA MENÜYÜ AÇIYOR
     );
   }
 }

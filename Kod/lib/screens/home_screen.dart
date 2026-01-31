@@ -2,10 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math'; // 🔥 Rastgele sayı üretmek için bu kütüphane şart!
+import 'dart:math'; 
 import 'login_page.dart';
-import 'topic_selection_screen.dart';
+import 'topic_selection_screen.dart'; // Ders seçimi için
 import 'profile_screen.dart';
+import 'quiz_screen.dart'; // Sınav ekranı
 
 // =============================================================================
 // ||                            ANA EKRAN (SKELETON)                         ||
@@ -65,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
         dailyGoal: _dailyGoal,
         currentMinutes: _currentMinutes
       ),
-      const Center(child: Text("İstatistikler (Yakında)")),
+      const Center(child: Text("İstatistikler (Yakında)")), // İleride buraya analiz ekranı gelecek
       const ProfileScreen(),
     ];
 
@@ -111,7 +112,7 @@ class DashboardView extends StatelessWidget {
     required this.currentMinutes,
   });
 
-  // 🔥 SORU HAVUZU: Buraya istediğin kadar soru ekle.
+  // 🔥 SORU HAVUZU
   final List<Map<String, String>> tumSorularHavuzu = [
     {"ders": "Anatomi", "soru": "Foramen rotundum'dan hangi sinir geçer?", "cevap": "N. Maxillaris"},
     {"ders": "Fizyoloji", "soru": "Kalp kasında 'gap junction' nerede bulunur?", "cevap": "İnterkalar disklerde"},
@@ -128,17 +129,13 @@ class DashboardView extends StatelessWidget {
   // 🔥 HER GÜN FARKLI SORU SEÇEN SİHİRLİ FONKSİYON
   Map<String, String> get gununSorusu {
     final now = DateTime.now();
-    // Bugünün tarihini (YılAyGün) birleştirip sayıya çeviriyoruz. Örn: 20260130
     int seed = int.parse("${now.year}${now.month}${now.day}");
-    
-    // Bu sayıyı "tohum" (seed) olarak kullanıyoruz.
-    // Aynı tohum her zaman aynı rastgele sayıyı üretir. (Tarih değişince tohum değişir)
     final random = Random(seed);
-    
     int randomIndex = random.nextInt(tumSorularHavuzu.length);
     return tumSorularHavuzu[randomIndex];
   }
 
+  // --- 1. KONU SINAVI SEÇİMİ (NORMAL MOD) ---
   void _showSelectionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -184,15 +181,21 @@ class DashboardView extends StatelessWidget {
     );
   }
 
+  // 🔥 GÜNCELLENDİ: Artık Ders Seçme Ekranına Gidiyor
   Widget _buildOptionButton(BuildContext context, String title, Color color, List<String> topics) {
     return GestureDetector(
       onTap: () {
-        Navigator.pop(context);
-        Navigator.push(context, MaterialPageRoute(builder: (context) => TopicSelectionScreen(
-          title: title,
-          topics: topics,
-          themeColor: color,
-        )));
+        Navigator.pop(context); // Bottom sheet'i kapat
+        
+        // TopicSelectionScreen'e yönlendir
+        Navigator.push(
+          context, 
+          MaterialPageRoute(builder: (context) => TopicSelectionScreen(
+            title: title, 
+            topics: topics, 
+            themeColor: color
+          ))
+        );                
       },
       child: Container(
         height: 100,
@@ -213,6 +216,7 @@ class DashboardView extends StatelessWidget {
     );
   }
 
+  // --- 2. DENEME SINAVI SEÇİMİ (SÜRELİ MOD) ---
   void _showDenemeSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -238,31 +242,49 @@ class DashboardView extends StatelessWidget {
               ),
               const Text("Deneme Türünü Seç", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 24),
+              
               _buildWideButton(
                 context,
                 title: "Temel Bilimler Denemesi",
                 subtitle: "Sadece temel derslerden 60 soru",
                 icon: Icons.science,
                 color: Colors.orange,
-                onTap: () { Navigator.pop(context); }
+                // Normal Deneme: Kullanıcıya süre sorulur
+                onTap: () { 
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const QuizScreen(isTrial: true)));
+                }
               ),
               const SizedBox(height: 16),
+              
               _buildWideButton(
                 context,
                 title: "Klinik Bilimler Denemesi",
                 subtitle: "Sadece klinik derslerden 60 soru",
                 icon: Icons.healing,
                 color: Colors.blue,
-                onTap: () { Navigator.pop(context); }
+                // Normal Deneme: Kullanıcıya süre sorulur
+                onTap: () { 
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const QuizScreen(isTrial: true)));
+                }
               ),
               const SizedBox(height: 16),
+              
+              // 🔥 GÜNCELLENDİ: Genel Deneme (Sabit 150 dk)
               _buildWideButton(
                 context,
                 title: "Genel Deneme (Tam Sınav)",
-                subtitle: "Gerçek sınav formatı (120 Soru)",
+                subtitle: "Gerçek sınav formatı (150 dk)", // Bilgi güncellendi
                 icon: Icons.timer,
                 color: Colors.redAccent,
-                onTap: () { Navigator.pop(context); }
+                onTap: () { 
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const QuizScreen(
+                    isTrial: true, 
+                    fixedDuration: 150 // 🔥 SABİT SÜRE
+                  )));
+                }
               ),
               const SizedBox(height: 20),
             ],
@@ -313,9 +335,7 @@ class DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 SORUYU BURADA ÇAĞIRIYORUZ
     final soruVerisi = gununSorusu;
-    
     final dusTarihi = DateTime(2026, 4, 26);
     final kalanGun = dusTarihi.difference(DateTime.now()).inDays;
     final primaryColor = Theme.of(context).primaryColor;
@@ -366,7 +386,7 @@ class DashboardView extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // --- GÜNÜN SORUSU KARTI (DİNAMİK) ---
+            // --- GÜNÜN SORUSU KARTI ---
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -396,7 +416,6 @@ class DashboardView extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   
-                  // 🔥 RASTGELE SEÇİLEN SORU METNİ
                   Text(
                     soruVerisi['soru']!, 
                     style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.3),
@@ -409,10 +428,10 @@ class DashboardView extends StatelessWidget {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
-                        // Soru sayfasına giderken soruyu da gönderiyoruz
+                        // Günün sorusu için şimdilik Normal Mod (isTrial: false) açıyoruz.
                         Navigator.push(
                           context, 
-                          MaterialPageRoute(builder: (context) => const DailyQuestionScreen())
+                          MaterialPageRoute(builder: (context) => const QuizScreen(isTrial: false))
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -579,19 +598,6 @@ class DashboardView extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// 🔥 EKLENEN GEÇİCİ SORU EKRANI
-class DailyQuestionScreen extends StatelessWidget {
-  const DailyQuestionScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Günün Sorusu")),
-      body: const Center(child: Text("Burada soru ve şıklar olacak...")),
     );
   }
 }

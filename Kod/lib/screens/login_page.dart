@@ -140,11 +140,9 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 
-                // Aradaki SizedBox'ı tamamen sildik!
-
                 // --- YAZIYI YUKARI ÇEKEN KOD (Transform) ---
                 Transform.translate(
-                  offset: const Offset(0, -20), // <-- BURASI ÖNEMLİ: Yazıyı 20 birim yukarı kaydırır
+                  offset: const Offset(0, -20), 
                   child: Text(
                     'DUS Asistanı', 
                     textAlign: TextAlign.center, 
@@ -155,9 +153,44 @@ class _LoginPageState extends State<LoginPage> {
                     )
                   ),
                 ),
+                
                 const SizedBox(height: 8),
-                const Text('Giriş yapın ve çalışmaya başlayın.', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey)),
-                const SizedBox(height: 48),
+
+                // 🔥 ATATÜRK SÖZÜ VE İMZASI BURADA 🔥
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "“Zafer, 'zafer benimdir' diyebilenindir. Başarı ise, 'başaracağım' diye başlayıp, sonunda 'başardım' diyebilenindir.”",
+                        textAlign: TextAlign.center, 
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.blueGrey, 
+                          fontFamily: 'Georgia',
+                          height: 1.5 // Satır aralığını biraz açtık, daha rahat okunur
+                        )
+                      ),
+                      const SizedBox(height: 10),
+                      // İMZA KISMI (SAĞA YASLI)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          "- Mustafa Kemal ATATÜRK",
+                          style: TextStyle(
+                            fontFamily: 'Georgia',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Theme.of(context).primaryColor, // Temanın ana rengiyle uyumlu
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 40), // Boşluğu biraz azalttık çünkü söz alanı büyüdü
                 
                 // Email Input
                 TextField(

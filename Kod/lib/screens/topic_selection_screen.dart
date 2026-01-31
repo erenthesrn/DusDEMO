@@ -1,9 +1,11 @@
+// lib/screens/topic_selection_screen.dart
 import 'package:flutter/material.dart';
+import 'test_list_screen.dart'; // 🔥 Sadece bunu çağırman yeterli
 
 class TopicSelectionScreen extends StatelessWidget {
   final String title;
   final List<String> topics;
-  final Color themeColor;
+  final Color themeColor; // Tema rengini buraya taşıdık
 
   const TopicSelectionScreen({
     super.key, 
@@ -41,7 +43,14 @@ class TopicSelectionScreen extends StatelessWidget {
               title: Text(topics[index], style: const TextStyle(fontWeight: FontWeight.bold)),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${topics[index]} seçildi.")));
+                // 🔥 TEST LİSTESİ EKRANINA GİDİYORUZ
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (context) => TestListScreen(
+                    topic: topics[index], // Seçilen dersi gönderiyoruz
+                    themeColor: themeColor, // Rengi gönderiyoruz
+                  ))
+                );              
               },
             ),
           );
