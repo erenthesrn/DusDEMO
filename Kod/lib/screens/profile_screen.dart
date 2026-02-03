@@ -1,3 +1,4 @@
+// lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -47,15 +48,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _isLoading = false;
           });
         } else {
-          // ⚠️ KRİTİK DÜZELTME: Veri yoksa (silinmişse) varsayılanı göster, dönüp durma!
+          // Veri yoksa varsayılanı göster
           setState(() {
-            _name = currentUser.displayName ?? "Kullanıcı"; // Auth'daki ismi kullan
+            _name = currentUser.displayName ?? "Kullanıcı";
             _email = currentUser.email ?? "";
             _role = "free";
-            _isLoading = false; // Yüklemeyi bitir
+            _isLoading = false;
           });
           
-          // İsteğe bağlı: Veritabanını tekrar oluştur (Tamir et)
+          // Veritabanını onar
           FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
             'name': _name,
             'email': _email,
@@ -77,6 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     }
   }
+
   // 3. Çıkış Yapma Fonksiyonu
   void _signOut() async {
     showDialog(
@@ -104,7 +106,195 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Hedef Branşı Değiştirme Fonksiyonu
+  // 4. HATA BİLDİR FONKSİYONU
+  void _showReportDialog() {
+    final TextEditingController noteController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.bug_report, color: Colors.red),
+            SizedBox(width: 10),
+            Text("Hata / Öneri Bildir"),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Uygulamada karşılaştığınız bir hatayı veya önerinizi bizimle paylaşın."),
+            const SizedBox(height: 15),
+            TextField(
+              controller: noteController,
+              decoration: const InputDecoration(
+                hintText: "Örn: Profil resmim güncellenmiyor...",
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              maxLines: 4,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Vazgeç", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565C0)),
+            onPressed: () async {
+              if (noteController.text.trim().isEmpty) return;
+
+              Navigator.pop(context); // Dialogu kapat
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Geri bildiriminiz alındı! Teşekkürler.")),
+              );
+
+              // FIREBASE KAYIT İŞLEMİ
+              try {
+                User? user = FirebaseAuth.instance.currentUser;
+                
+                await FirebaseFirestore.instance.collection('app_reports').add({
+                  'reportType': 'General / Profile',
+                  'userNote': noteController.text.trim(),
+                  'userId': user?.uid ?? "Anonim",
+                  'userEmail': _email,
+                  'userName': _name,
+                  'reportedAt': FieldValue.serverTimestamp(),
+                  'status': 'open',
+                  'deviceInfo': 'Android/iOS'
+                });
+              } catch (e) {
+                debugPrint("Rapor gönderilemedi: $e");
+              }
+            },
+            child: const Text("Gönder"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 5. HEDEF MENÜSÜ GÖSTERİMİ (Süre veya Uzmanlık Seçimi) ---
+  void _showTargetOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Hedef Ayarları 🎯", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              
+              // 1. Seçenek: Günlük Süre
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.timer, color: Colors.orange),
+                ),
+                title: const Text("Günlük Çalışma Süresi"),
+                subtitle: const Text("Dakika hedefini belirle"),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                onTap: () {
+                  Navigator.pop(context); // Menüyü kapat
+                  _changeDailyGoal(); // Süre dialogunu aç
+                },
+              ),
+              
+              const Divider(),
+
+              // 2. Seçenek: Uzmanlık Alanı
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.school, color: Colors.blue),
+                ),
+                title: const Text("Uzmanlık Hedefi"),
+                subtitle: const Text("Bölüm tercihini değiştir"),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                onTap: () {
+                  Navigator.pop(context); // Menüyü kapat
+                  _changeTargetBranch(); // Mevcut branş seçimini aç
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  } 
+
+  // --- 6. GÜNLÜK SÜRE GİRME FONKSİYONU ---
+  void _changeDailyGoal() {
+    TextEditingController goalController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Günlük Hedef ⏱️"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Günde kaç dakika çalışmayı hedefliyorsun?"),
+            const SizedBox(height: 15),
+            TextField(
+              controller: goalController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: "Dakika",
+                hintText: "Örn: 120",
+                suffixText: "dk",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("İptal")
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (goalController.text.isNotEmpty) {
+                int? minutes = int.tryParse(goalController.text);
+                
+                if (minutes != null && minutes > 0) {
+                  // Firebase'e kaydet
+                  User? user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                      'dailyGoalMinutes': minutes
+                    });
+                    
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Günlük hedef $minutes dk olarak güncellendi! 🔥"))
+                      );
+                    }
+                  }
+                }
+              }
+            },
+            child: const Text("Kaydet"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 7. UZMANLIK ALANI DEĞİŞTİRME FONKSİYONU ---
   void _changeTargetBranch() {
     final List<String> branches = [
       "Cerrahi", "Radyoloji", "Pedodonti", 
@@ -172,17 +362,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator()) // Yüklenirken dönen çark
+          ? const Center(child: CircularProgressIndicator()) 
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // --- 1. KİMLİK KARTI (Artık Dinamik) ---
+                  // --- 1. KİMLİK KARTI ---
                   _buildProfileHeader(),
 
                   const SizedBox(height: 24),
 
-                  // --- 2. İSTATİSTİK (SERİ) ---
+                  // --- 2. İSTATİSTİK ---
                   _buildStreakCard(),
 
                   const SizedBox(height: 24),
@@ -198,24 +388,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                     child: Column(
                       children: [
-                        // YERİNE BUNU YAPIŞTIR:
                         _buildMenuItem(
                           Icons.person_outline, 
                           "Kişisel Bilgilerim", 
                           "İsim ve Şifre işlemleri", 
                           () {
-                            // Tıklanınca EditProfilePage sayfasına git
                             Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfilePage()));
                           }
                         ),
                         _buildDivider(),
                         _buildMenuItem(
                           Icons.ads_click,
-                          "Hedefim",
-                          "Uzmanlık hedefini değiştir.",
-                          _changeTargetBranch
-                          ),
-                          
+                          "Hedeflerim",
+                          "Süre Hedefi ve Uzmanlık hedefini değiştir.",
+                          _showTargetOptions // <-- Düzeltilmiş menü fonksiyonu
+                        ),
                         _buildDivider(),
                         _buildMenuItem(Icons.notifications_outlined, "Bildirimler", "Sınav hatırlatmaları", () {}),
                       ],
@@ -235,7 +422,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                     child: Column(
                       children: [
-                        _buildMenuItem(Icons.bug_report_outlined, "Hata Bildir", "Sorun mu var?", () {}),
+                        _buildMenuItem(Icons.bug_report_outlined, "Hata Bildir", "Sorun mu var?", _showReportDialog),
                         _buildDivider(),
                         _buildMenuItem(Icons.share, "Arkadaşını Davet Et", "Kazan & Kazandır", () {}),
                         _buildDivider(),
@@ -246,9 +433,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   
                   const SizedBox(height: 40),
 
-                  // --- 5. ÇIKIŞ YAP BUTONU (Fonksiyon Bağlandı) ---
+                  // --- 5. ÇIKIŞ YAP ---
                   TextButton.icon(
-                    onPressed: _signOut, // <-- Burayı bağladık
+                    onPressed: _signOut,
                     icon: Icon(Icons.logout, color: Colors.red[300], size: 20),
                     label: Text(
                       "Hesaptan Çıkış Yap", 
@@ -273,7 +460,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // --- WIDGET PARÇALARI ---
 
   Widget _buildProfileHeader() {
-    // İsmin baş harflerini almak için basit bir mantık
     String initials = _name.isNotEmpty ? _name[0].toUpperCase() : "?";
     if (_name.contains(" ")) {
       var parts = _name.split(" ");
@@ -291,7 +477,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Row(
         children: [
-          // Profil Resmi (İsim Baş Harfleri)
           Container(
             width: 70, height: 70,
             decoration: BoxDecoration(
@@ -306,18 +491,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🔥 İsim Firebase'den geliyor
                 Text(_name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                // 🔥 Email Firebase'den geliyor
                 Text(_email, style: const TextStyle(color: Colors.grey, fontSize: 13)), 
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    // Statik rozet (Örnek)
                     _buildBadge(Icons.school, "DUS", Colors.orange), 
                     const SizedBox(width: 8),
-                    // 🔥 Dinamik Rozet: Eğer kullanıcı Premium ise göster, değilse "Free" göster
                     _role == 'premium' 
                         ? _buildBadge(Icons.workspace_premium, "Premium", Colors.purple)
                         : _buildBadge(Icons.person_outline, "Ücretsiz", Colors.blueGrey),
@@ -345,23 +526,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ... Diğer Widgetlar (_buildStreakCard, _buildMenuItem, _buildDivider) AYNI KALDI ...
   Widget _buildStreakCard() {
     bool isActive = _streak > 0;
 
     return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            // 🔥 Eğer seri varsa Alev Rengi, yoksa Gri (Pasif) Renk
             gradient: LinearGradient(
               colors: isActive 
-                  ? [const Color(0xFFFF8008), const Color(0xFFFFC837)] // Aktif: Turuncu/Sarı
-                  : [Colors.grey.shade400, Colors.grey.shade600],      // Pasif: Gri Tonları
+                  ? [const Color(0xFFFF8008), const Color(0xFFFFC837)] 
+                  : [Colors.grey.shade400, Colors.grey.shade600],
             ),
             borderRadius: BorderRadius.circular(16),
             boxShadow: isActive 
                 ? [BoxShadow(color: const Color(0xFFFF8008).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] 
-                : [], // Pasifse gölge yok
+                : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -370,21 +549,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isActive ? "🔥 Günlük Seri" : "💤 Seri Başlamadı", // Başlık duruma göre değişir
+                    isActive ? "🔥 Günlük Seri" : "💤 Seri Başlamadı",
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
                   ),
                   const SizedBox(height: 4),
                   Text(
                     isActive 
                       ? "Harikasın, böyle devam et!" 
-                      : "Bugün bir test çöz ve ateşi yak!", // Alt metin motive eder
-                    style: const TextStyle(color: Colors.white, fontSize: 12) // white70 yerine white yaptık daha okunaklı olsun diye
+                      : "Bugün bir test çöz ve ateşi yak!",
+                    style: const TextStyle(color: Colors.white, fontSize: 12)
                   ),
                 ],
               ),
               
           Container(
-            padding: const EdgeInsets.all(12), // Alanı biraz genişlettik
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2), 
               shape: BoxShape.circle
