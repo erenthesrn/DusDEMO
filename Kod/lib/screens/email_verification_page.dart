@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
+import 'onboarding_page.dart'; // YENİ: Onboarding sayfasına gitmek için import ettik
 
 class EmailVerificationPage extends StatefulWidget {
   const EmailVerificationPage({super.key});
@@ -14,38 +15,76 @@ class EmailVerificationPage extends StatefulWidget {
 class _EmailVerificationScreenState extends State<EmailVerificationPage> {
   bool isEmailVerified = false;
   bool canResendEmail = false;
-  Timer? timer;
-  int countdown = 90; // 90 saniye bekleme süresi
+  Timer? countdownTimer;      // Geri sayım için timer
+  Timer? checkVerifiedTimer;  // YENİ: Doğrulamayı kontrol eden timer
+  int countdown = 90;
 
   @override
   void initState() {
     super.initState();
 
-    // Ekran açıldığında kullanıcının mail durumunu kontrol edebiliriz
+    // Mevcut durumu kontrol et
     isEmailVerified = FirebaseAuth.instance.currentUser?.emailVerified ?? false;
 
     if (!isEmailVerified) {
-      // Eğer doğrulanmamışsa, kullanıcıya tekrar mail atma hakkı vermeden önce sayacı başlat
-      startTimer();
+      // 1. Geri sayımı başlat (Tekrar gönder butonu için)
+      startCountdownTimer();
       
-      // Opsiyonel: Sayfa açıkken mail onaylanırsa otomatik algılamak için
-      // Timer.periodic kullanarak checkEmailVerified() çağırabilirsin.
+      // 2. YENİ: Arka planda sürekli kontrol etmeye başla (Her 3 saniyede bir)
+      checkVerifiedTimer = Timer.periodic(
+        const Duration(seconds: 3), 
+        (_) => checkEmailVerified(),
+      );
     }
   }
 
-  void startTimer() {
+  // YENİ: Firebase'e gidip "Doğrulandı mı?" diye soran fonksiyon
+  Future<void> checkEmailVerified() async {
+    // Kullanıcı bilgisini yenile (Reload) yapmazsak Firebase eski veriyi döndürür
+    await FirebaseAuth.instance.currentUser?.reload();
+
+    setState(() {
+      isEmailVerified = FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+    });
+
+    if (isEmailVerified) {
+      // Eğer doğrulanmışsa:
+      // 1. Tüm sayaçları durdur
+      countdownTimer?.cancel();
+      checkVerifiedTimer?.cancel();
+
+      // 2. Kullanıcıya haber ver (Opsiyonel)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('E-posta başarıyla doğrulandı! Yönlendiriliyorsunuz... 🚀'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // 3. Direkt Onboarding sayfasına yönlendir
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const OnboardingPage()), 
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  void startCountdownTimer() {
     setState(() {
       canResendEmail = false;
       countdown = 90;
     });
 
-    timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {
         if (countdown > 0) {
           countdown--;
         } else {
           canResendEmail = true;
-          timer?.cancel();
+          countdownTimer?.cancel();
         }
       });
     });
@@ -57,7 +96,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
       await user?.sendEmailVerification();
 
       // Mail gönderildikten sonra sayacı tekrar başlat
-      startTimer();
+      startCountdownTimer();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -74,13 +113,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
   }
 
   Future<void> cancelAndReturnToLogin() async {
-    // Önce timer'ı durdur, bellek sızıntısını önle
-    timer?.cancel();
-    await FirebaseAuth.instance.signOut(); // Çıkış yap
+    // Timerları temizle
+    countdownTimer?.cancel();
+    checkVerifiedTimer?.cancel();
+    
+    await FirebaseAuth.instance.signOut();
     
     if (mounted) {
-      // BURAYI DEĞİŞTİRİYORSUN:
-      // Bu kod, "LoginScreen" sayfasına git ve gerideki tüm sayfaları hafızadan sil demektir.
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()), 
         (route) => false,
@@ -90,18 +129,19 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
 
   @override
   void dispose() {
-    timer?.cancel();
+    // Sayfa kapanırsa timerları öldür, yoksa arka planda çalışmaya devam ederler
+    countdownTimer?.cancel();
+    checkVerifiedTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Kullanıcı çıkış yaparken anlık null olabilir, bu yüzden '??' ile koruma ekledik.
     final user = FirebaseAuth.instance.currentUser;
     final email = user?.email ?? "E-posta adresi alınamadı";
 
     return Scaffold(
-      backgroundColor: Colors.white, // Tasarıma uygun arka plan
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -115,7 +155,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
               ),
               const SizedBox(height: 40),
               
-              // İkon
               const Icon(
                 Icons.mark_email_read_outlined, 
                 size: 100, 
@@ -132,7 +171,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
               
               const SizedBox(height: 10),
               
-              // E-posta adresi metni
               Text(
                 '$email adresine bir doğrulama bağlantısı gönderdik.',
                 textAlign: TextAlign.center,
@@ -141,16 +179,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
               
               const SizedBox(height: 20),
               
-              // 1. İSTEK: Spam uyarısı eklendi
               const Text(
-                'Lütfen mail kutunuzu (gelen kutusu veya spam/gereksiz klasörünü) kontrol edin ve gelen linke tıklayın.\nMail sunucularındaki yoğunluk nedeniyle e-postanızın ulaşması birkaç dakika sürebilir.',
+                'Lütfen mail kutunuzu (gelen kutusu veya spam/gereksiz klasörünü) kontrol edin ve gelen linke tıklayın.\n\nSistem otomatik olarak onayınızı algılayacaktır...',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, height: 1.5),
               ),
               
               const SizedBox(height: 40),
               
-              // 2. İSTEK: 90 Saniye Buton Mantığı
+              // Buton
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -163,7 +200,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
                       : 'Tekrar Gönder (${countdown}s)',
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[200], // Pasifken gri görünüm
+                    backgroundColor: Colors.grey[200],
                     foregroundColor: Colors.black,
                   ),
                 ),
@@ -171,7 +208,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
               
               const SizedBox(height: 20),
               
-              // 3. İSTEK: Vazgeç Butonu
               TextButton(
                 onPressed: cancelAndReturnToLogin,
                 child: const Text(
