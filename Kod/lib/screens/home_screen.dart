@@ -24,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   int _dailyGoal = 60;
   int _currentMinutes = 0;
-
+  int _totalSolved = 0;
   @override
   void initState() {
     super.initState();
@@ -44,6 +44,12 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             if (data.containsKey('dailyGoalMinutes')) {
               _dailyGoal = data['dailyGoalMinutes'];
+            }
+            if (data.containsKey('totalSolved')){
+              _totalSolved = data['totalSolved'];
+            }
+            if(data.containsKey('totalMinutes')){
+              _currentMinutes = data['totalMinutes'];
             }
           });
         }
@@ -68,7 +74,9 @@ class _HomeScreenState extends State<HomeScreen> {
       DashboardView(
         titleName: _targetBranch,
         dailyGoal: _dailyGoal,
-        currentMinutes: _currentMinutes
+        currentMinutes: _currentMinutes,
+        totalSolved: _totalSolved,
+        onRefresh: _fetchTargetBranch,
       ),
       const Center(child: Text("İstatistikler (Yakında)")), // İleride buraya analiz ekranı gelecek
       const ProfileScreen(),
@@ -108,12 +116,16 @@ class DashboardView extends StatelessWidget {
   final String titleName;
   final int dailyGoal;
   final int currentMinutes;
+  final int totalSolved;
+  final VoidCallback onRefresh;
 
   DashboardView({
     super.key,
     required this.titleName,
     required this.dailyGoal,
     required this.currentMinutes,
+    required this.totalSolved,
+    required this.onRefresh,    
   });
 
   // 🔥 SORU HAVUZU
@@ -199,6 +211,7 @@ class DashboardView extends StatelessWidget {
             topics: topics, 
             themeColor: color
           ))
+          ).then((_) => onRefresh() // 🔥 EKLENDİ
         );                
       },
       child: Container(
@@ -256,7 +269,8 @@ class DashboardView extends StatelessWidget {
                 // Normal Deneme: Kullanıcıya süre sorulur
                 onTap: () { 
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const QuizScreen(isTrial: true)));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const QuizScreen(isTrial: true)))
+                    .then((_) => onRefresh());
                 }
               ),
               const SizedBox(height: 16),
@@ -436,6 +450,7 @@ class DashboardView extends StatelessWidget {
                         Navigator.push(
                           context, 
                           MaterialPageRoute(builder: (context) => const QuizScreen(isTrial: false))
+                        ).then((_) => onRefresh()
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -465,7 +480,7 @@ class DashboardView extends StatelessWidget {
             // --- İSTATİSTİK KARTLARI ---
             Row(
               children: [
-                Expanded(child: _buildStatCard(context, "Çözülen", "124", Icons.check_circle_outline, Colors.green)),
+                Expanded(child: _buildStatCard(context, "Çözülen", "$totalSolved", Icons.check_circle_outline, Colors.green)),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Container(

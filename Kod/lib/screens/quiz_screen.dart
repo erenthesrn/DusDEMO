@@ -408,13 +408,31 @@ class _QuizScreenState extends State<QuizScreen> {
                   wrong++;
                 }
               }
-              
+              if (!widget.isReviewMode) {
+                User? user = FirebaseAuth.instance.currentUser;
+                if (user != null) {
+                  int totalSolvedNow = correct + wrong; // Boşları saymıyoruz, sadece işaretlenenler
+                  int minutesSpent = (_seconds > 0 && !widget.isTrial) ? (_seconds ~/ 60) : 0; 
+                  // Not: Deneme sınavında süre geriye saydığı için mantığı farklı kurabilirsin, 
+                  // şimdilik normal modda geçen süreyi (dakika cinsinden) alıyoruz.
+
+                  try {
+                    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                      // FieldValue.increment sayesinde eski değeri okumadan üstüne ekleme yapıyoruz
+                      'totalSolved': FieldValue.increment(totalSolvedNow),
+                      'totalMinutes': FieldValue.increment(minutesSpent),
+                    });
+                  } catch (e) {
+                    debugPrint("İstatistik güncellenemedi: $e");
+                  }
+                }
+              }
               int score = 0;
               if (_questions.isNotEmpty) {
                  score = ((correct / _questions.length) * 100).toInt();
               }
 
-// 2. KAYDETME İŞLEMİ 💾
+              // 2. KAYDETME İŞLEMİ 💾
               if (!widget.isTrial && widget.topic != null && widget.testNo != null) {
                 await QuizService.saveQuizResult(
                   topic: widget.topic!,
