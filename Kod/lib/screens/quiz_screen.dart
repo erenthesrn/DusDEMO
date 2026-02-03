@@ -7,6 +7,7 @@ import '../services/quiz_service.dart';
 import 'result_screen.dart'; // 🔥 Sonuç ekranını import ettik
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/mistakes_service.dart';
 
 class QuizScreen extends StatefulWidget {
   final bool isTrial; // Deneme mi?
@@ -369,9 +370,33 @@ class _QuizScreenState extends State<QuizScreen> {
               Navigator.pop(ctx); 
               _timer?.cancel(); // Sayacı durdur
 
+              List<Map<String, dynamic>> wrongQuestionsToSave = [];
+
+              //Yanlışların kaydının tutulması
+
+              for (int i = 0; i < _questions.length; i++) {
+                // Eğer kullanıcı yanlış yaptıysa (boşlar dahil edilmeyebilir, tercihen sadece yanlışlar)
+                if (_userAnswers[i] != _questions[i].answerIndex) {
+                  wrongQuestionsToSave.add({
+                    'id': _questions[i].id,
+                    'question': _questions[i].question,
+                    'options': _questions[i].options,
+                    'correctIndex': _questions[i].answerIndex,
+                    'userIndex': _userAnswers[i],
+                    'subject': widget.topic ?? "Genel", // Dersi buradan alıyoruz
+                    'explanation': _questions[i].explanation,
+                    'date': DateTime.now().toIso8601String(),
+                  });
+                }
+              }
+
+              if (wrongQuestionsToSave.isNotEmpty) {
+                await MistakesService.addMistakes(wrongQuestionsToSave);
+              }
+
               // 1. PUAN HESAPLAMA 🧮
               int correct = 0;
-              int wrong = 0;
+              int wrong = 0;  
               int empty = 0;
 
               for (int i = 0; i < _questions.length; i++) {

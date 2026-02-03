@@ -7,6 +7,7 @@ import 'login_page.dart';
 import 'topic_selection_screen.dart'; // Ders seçimi için
 import 'profile_screen.dart';
 import 'quiz_screen.dart'; // Sınav ekranı
+import 'mistakes_screen.dart';
 
 // =============================================================================
 // ||                            ANA EKRAN (SKELETON)                         ||
@@ -160,7 +161,7 @@ class DashboardView extends StatelessWidget {
                       context,
                       "Temel Bilimler",
                       Colors.orange,
-                      ["💀Anatomi","🧬Histoloji ve Embriyoloji" ,"🫀Fizyoloji", "🧪Biyokimya", "🦠Mikrobiyoloji", "🔬Patoloji", "💊Farmakoloji","🧬Biyoloji ve Genetik"]
+                      ["Anatomi","Histoloji ve Embriyoloji" ,"Fizyoloji", "Biyokimya", "Mikrobiyoloji", "Patoloji", "Farmakoloji","Biyoloji ve Genetik"]
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -169,7 +170,7 @@ class DashboardView extends StatelessWidget {
                       context,
                       "Klinik Bilimler",
                       Colors.blue,
-                      ["🦷Protetik Diş Tedavisi", "✨Restoratif Diş Tedavisi", "⚡️Endodonti", "🩸Periodontoloji", "📏Ortodonti", "👶Pedodonti", "😷Ağız,Diş ve Çene Cerrahisi", "💀Ağız,Diş ve Çene Radyolojisi"]
+                      ["Protetik Diş Tedavisi", "Restoratif Diş Tedavisi", "Endodonti", "Periodontoloji", "Ortodonti", "Pedodonti", "Ağız,Diş ve Çene Cerrahisi", "Ağız,Diş ve Çene Radyolojisi"]
                     ),
                   ),
                 ],
@@ -522,7 +523,8 @@ class DashboardView extends StatelessWidget {
                 }),
                 _buildMenuCard(context, "Denemeler", "Tam Format", Icons.timer, Colors.redAccent, onTap: () {_showDenemeSheet(context); }),
                 _buildMenuCard(context, "Spot Bilgiler", "Hızlı Tekrar", Icons.flash_on, Colors.amber[700]!, onTap: () {}),
-                _buildMenuCard(context, "Yanlışlarım", "Eksikleri Kapat", Icons.refresh, Colors.teal, onTap: () {}),
+                _buildMenuCard(context, "Yanlışlarım", "Eksikleri Kapat", Icons.refresh, Colors.teal, onTap: () {Navigator.push(context, MaterialPageRoute(builder: (context) => MistakesDashboard()));
+                }),
               ],
             ),
 
