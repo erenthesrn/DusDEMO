@@ -1,17 +1,45 @@
 // lib/main.dart
+import 'package:dus_app_1/screens/blog_screen.dart';
 import 'package:dus_app_1/screens/quiz_screen.dart';
-
+import 'package:flutter/foundation.dart'; // Web kontrolü (kIsWeb) için bu gerekli
 import 'screens/home_screen.dart'; 
 import 'package:flutter/material.dart';
 import 'screens/login_page.dart'; 
 import 'package:firebase_core/firebase_core.dart'; 
 import 'firebase_options.dart'; 
 
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(apiKey: "AIzaSyCSEnLiJqIOIE0FxXNJNNmiNIWM85OFVKM", appId: "1:272729938344:android:f8312320eb7df19cf8259d", messagingSenderId: "272729938344", projectId: "dusapp-17b00")
-  );
+
+  if (kIsWeb) {
+    // --- CHROME (WEB) İÇİN AYARLAR ---
+    // Buradaki değerleri Firebase Konsolu -> Proje Ayarları -> Web Uygulaması (</>) kısmından almalısınız.
+    // Android şifreleri burada ÇALIŞMAZ.
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "BURAYA_WEB_API_KEY_GELECEK",
+        appId: "BURAYA_WEB_APP_ID_GELECEK",
+        messagingSenderId: "272729938344",
+        projectId: "dusapp-17b00",
+      ),
+    );
+  } 
+  else if (defaultTargetPlatform == TargetPlatform.iOS) {
+    // --- iOS (IPHONE) ---
+    // Dosyadan (GoogleService-Info.plist) otomatik okur.
+    await Firebase.initializeApp();
+  } 
+  else {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyCSEnLiJqIOIE0FxXNJNNmiNIWM85OFVKM",
+        appId: "1:272729938344:android:f8312320eb7df19cf8259d",
+        messagingSenderId: "272729938344",
+        projectId: "dusapp-17b00",
+      ),
+    );
+  }
+
   runApp(const DusApp());
 }
 

@@ -298,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _changeTargetBranch() {
     final List<String> branches = [
       "Cerrahi", "Radyoloji", "Pedodonti", 
-      "Periodontoloji", "Protetik", 
+      "Periodontoloji", "Protez", 
       "Endodonti", "Restoratif",
       "Ortodonti"
     ];

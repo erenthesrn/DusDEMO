@@ -1,0 +1,32 @@
+[
+  {
+    "id": 14000,
+    "test_no": 1,
+    "level": "Kolay",
+    "question": "Kennedy sınıflamasına göre, hangi sınıf dişsizlik vakalarında 'modifikasyon alanı' (ek dişsiz boşluk) bulunması teknik olarak mümkün değildir?",
+    "options": [
+      "A) Sınıf I",
+      "B) Sınıf II",
+      "C) Sınıf III",
+      "D) Sınıf IV",
+      "E) Sınıf V"
+    ],
+    "answer_index": 3,
+    "explanation": "Doğru cevap D şıkkıdır."
+  },
+  {
+    "id": 14001,
+    "test_no": 9,
+    "level": "Orta",
+    "question": "Sabit protezlerde gövde (pontik) tasarımı yapılırken, mukoza ile temas etmediği için temizlenmesi en kolay olan, ancak estetik olmadığı için genellikle alt çene posterior bölgede tercih edilen gövde tipi hangisidir?",
+    "options": [
+      "A) Oval (Ovate) Gövde",
+      "B) Semer (Saddle) Gövde",
+      "C) Yarım Semer (Ridge Lap) Gövde",
+      "D) Sıhhi (Hygienic) Gövde",
+      "E) N. Vagus"
+    ],
+    "answer_index": 3,
+    "explanation":"Açıklama eklenecek"
+  }
+]

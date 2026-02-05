@@ -156,7 +156,7 @@ class _GuestHomePageState extends State<GuestHomePage> {
                       _buildLockedCard(context, "Biyokimya", Icons.science),
                       _buildLockedCard(context, "Farmakoloji", Icons.medical_services),
                       _buildLockedCard(context, "Patoloji", Icons.coronavirus),
-                      _buildLockedCard(context, "Mikrobiyoloji", Icons.bug_report),
+                      _buildLockedCard(context, "Ve Daha Nice Ders, Özellik için Kaydol", Icons.vpn_key),
                     ],
                   ),
                 ),

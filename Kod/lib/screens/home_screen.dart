@@ -9,7 +9,7 @@ import 'profile_screen.dart';
 import 'quiz_screen.dart'; // Sınav ekranı
 import 'mistakes_screen.dart';
 import 'package:confetti/confetti.dart';
-
+import 'blog_screen.dart';
 // =============================================================================
 // ||                            ANA EKRAN (SKELETON)                         ||
 // =============================================================================
@@ -132,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       const Center(child: Text("İstatistikler (Yakında)")), // İleride buraya analiz ekranı gelecek
       const ProfileScreen(),
+      const BlogScreen(),
     ];
 
     return Scaffold(
@@ -165,10 +166,13 @@ class _HomeScreenState extends State<HomeScreen> {
           boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
         ),
         child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Kokpit'),
             BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded), label: 'Analiz'),
             BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profil'),
+            BottomNavigationBarItem(icon: Icon(Icons.article_rounded), label: 'Rehber'),
+
           ],
           currentIndex: _selectedIndex,
           selectedItemColor: const Color(0xFF0D47A1),
@@ -260,7 +264,7 @@ class DashboardView extends StatelessWidget {
                       context,
                       "Klinik Bilimler",
                       Colors.blue,
-                      ["Protetik Diş Tedavisi", "Restoratif Diş Tedavisi", "Endodonti", "Periodontoloji", "Ortodonti", "Pedodonti", "Ağız,Diş ve Çene Cerrahisi", "Ağız,Diş ve Çene Radyolojisi"]
+                      ["Protetik Diş Tedavisi", "Restoratif Diş Tedavisi", "Endodonti", "Periodontoloji", "Ortodonti", "Pedodonti", "Ağız, Diş ve Çene Cerrahisi", "Ağız, Diş ve Çene Radyolojisi"]
                     ),
                   ),
                 ],
@@ -572,8 +576,14 @@ class DashboardView extends StatelessWidget {
             // --- İSTATİSTİK KARTLARI ---
             Row(
               children: [
-                Expanded(child: _buildStatCard(context, "Çözülen Soru", "$totalSolved", Icons.check_circle_outline, Colors.green)),
+                // 1. KART (SOL)
+                Expanded(
+                  child: _buildStatCard(context, "Çözülen Soru", "$totalSolved", Icons.check_circle_outline, Colors.green)
+                ),
+                
                 const SizedBox(width: 16),
+
+                // 2. KART (SAĞ - DÜZELTİLEN KISIM)
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(16),
@@ -585,6 +595,7 @@ class DashboardView extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
+                        // Yuvarlak Grafik (Stack)
                         Stack(
                           alignment: Alignment.center,
                           children: [
@@ -600,25 +611,41 @@ class DashboardView extends StatelessWidget {
                             const Icon(Icons.flag_outlined, color: Colors.orange, size: 20),
                           ],
                         ),
+                        
                         const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("$currentMinutes / $dailyGoal dk", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                            Text("Süre Hedefi", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                          ],
-                        )
+                        
+                        // Yazı Kısmı (Overflow olmasın diye Expanded eklendi)
+                        Expanded( 
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  "$currentMinutes / $dailyGoal dk", 
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              Text(
+                                "Süre Hedefi", 
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
-                    ),
-                  ),
-                ),
+                    ), // İçteki Row Bitti
+                  ), // Container Bitti
+                ), // Sağdaki Expanded Bitti
               ],
-            ),
+            ), // --- ANA ROW BİTTİ --- (Burası eksikti)
 
+            // Artık alt satıra geçebiliriz
             const SizedBox(height: 24),
             const Text("Çalışma Modülleri", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-
             // --- MODÜLLER IZGARASI ---
             GridView.count(
               shrinkWrap: true,

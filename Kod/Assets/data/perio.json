@@ -1,0 +1,32 @@
+[
+  {
+    "id": 13000,
+    "test_no": 1,
+    "level": "Kolay",
+    "question": "Socransky tarafından tanımlanan ve periodontal hastalıkların şiddeti ile en yakından ilişkili olan 'Kırmızı Kompleks' (Red Complex) bakterileri arasında aşağıdakilerden hangisi yer alır?",
+    "options": [
+      "A) Aggregatibacter actinomycetemcomitans",
+      "B) Porphyromonas gingivalis",
+      "C) Prevotella intermedia",
+      "D) Fusobacterium nucleatum",
+      "E) Eikenella corrodens"
+    ],
+    "answer_index": 2,
+    "explanation": "Socransky'nin renk komplekslerine göre Kırmızı Kompleks, derin periodontal ceplerde bulunan ve 'Kanamalı' (BOP pozitif) alanlarla en güçlü ilişkiye sahip gruptur. Bu grup üç bakteriden oluşur:\nPorphyromonas gingivalis\nTannerella forsythia\nTreponema denticola\n\nDiğer şıklardaki bakteriler farklı komplekslerde yer alır (Örneğin: F. nucleatum ve P. intermedia Turuncu komplekste bulunur ve kırmızı kompleksin kolonizasyonu için köprü görevi görür)."
+  },
+  {
+    "id": 13001,
+    "test_no": 1,
+    "level": "Kolay",
+    "question": "Ağız içerisinde yapışık diş eti (attached gingiva) genişliğinin en dar olduğu bölge aşağıdakilerden hangisidir?",
+    "options": [
+      "A) Üst çene keserler bölgesi",
+      "B) Alt çene keserler bölgesi",
+      "C) Üst çene molarlar bölgesi",
+      "D) Alt çene premolar bölgesi",
+      "E) Üst çene premolar bölgesi"
+    ],
+    "answer_index": 3,
+    "explanation":"Yapışık diş eti genişliği ağız içinde bölgeden bölgeye değişir. Genel kural olarak:\nEn geniş olduğu yer: Üst çene (maksilla) keserler bölgesidir.\nEn dar olduğu yer: Alt çene (mandibula) premolar bölgesidir."
+  }
+]

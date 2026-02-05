@@ -101,6 +101,36 @@ class _QuizScreenState extends State<QuizScreen> {
       else if (topicName.contains("Mikrobiyoloji")) {
         jsonFileName = "mikrobiyoloji.json";
       }
+     else if (topicName.contains("Biyoloji ve Genetik")) {
+        jsonFileName = " biyoloji.json";
+      }
+      else if (topicName.contains("Ağız, Diş ve Çene Cerrahisi")) {
+        jsonFileName = "cerrahi.json";
+      }            
+      else if (topicName.contains("Endodonti")) {
+        jsonFileName = "endo.json";
+      }
+      else if (topicName.contains("Periodontoloji")) {
+        jsonFileName = "perio.json";
+      }         
+      else if (topicName.contains("Mikrobiyoloji")) {
+        jsonFileName = "mikrobiyoloji.json";
+      }         
+      else if (topicName.contains("Ortodonti")) {
+        jsonFileName = "orto.json";
+      }      
+      else if (topicName.contains("Pedodonti")) {
+        jsonFileName = "pedo.json";
+      }      
+      else if (topicName.contains("Protetik Diş Tedavisi")) {
+        jsonFileName = "protetik.json";
+      }      
+      else if (topicName.contains("Ağız, Diş ve Çene Radyolojisi")) {
+        jsonFileName = "radyoloji.json";
+      }      
+      else if (topicName.contains("Restoratif Diş Tedavisi")) {
+        jsonFileName = "resto.json";
+      }      
       else {
         throw Exception("DersTanimsiz"); 
       }
