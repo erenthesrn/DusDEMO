@@ -525,6 +525,7 @@ class _QuizScreenState extends State<QuizScreen> {
       await userDoc.update({
         'totalSolved': FieldValue.increment(totalSolvedNow),
         'totalMinutes': FieldValue.increment(minutesSpent),
+        'totalCorrect': FieldValue.increment(correct), // <--- BU SATIR EKSİKTİ!
         'streak': currentStreak,
         'lastStudyDate': FieldValue.serverTimestamp(),
       });

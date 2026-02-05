@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -26,57 +27,70 @@ class _HomeScreenState extends State<HomeScreen> {
   int _dailyGoal = 60;
   int _currentMinutes = 0;
   int _totalSolved = 0;
-  // ignore: unused_field
-  bool _isLoading = true;
+  int _totalCorrect = 0; 
+  bool _isLoading = true; // ignore: unused_field
 
   late ConfettiController _confettiController;
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   @override
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
-    _fetchUserData(); // Verileri çek
+    _listenToUserData(); // Canlı dinlemeyi başlat
   }
 
   @override
   void dispose() {
+    _userSubscription?.cancel(); // Sayfadan çıkınca dinlemeyi durdur
     _confettiController.dispose();
     super.dispose();
   }
 
-  // --- FIREBASE VERİ ÇEKME ---
-  Future<void> _fetchUserData() async {
+  // --- FIREBASE VERİ CANLI TAKİP (STREAM) ---
+  void _listenToUserData() {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      try {
-        DocumentSnapshot doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (doc.exists && doc.data() != null) {
-          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      _userSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+        
+        if (snapshot.exists && snapshot.data() != null) {
+          Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
           
-          setState(() {
-            if (data.containsKey('targetBranch')) _targetBranch = data['targetBranch'];
-            if (data.containsKey('dailyGoalMinutes')) _dailyGoal = (data['dailyGoalMinutes'] as num).toInt();
-            if (data.containsKey('totalMinutes')) _currentMinutes = (data['totalMinutes'] as num).toInt();
-            if (data.containsKey('totalSolved')) _totalSolved = (data['totalSolved'] as num).toInt();
-            _isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              if (data.containsKey('targetBranch')) _targetBranch = data['targetBranch'];
+              if (data.containsKey('dailyGoalMinutes')) _dailyGoal = (data['dailyGoalMinutes'] as num).toInt();
+              if (data.containsKey('totalMinutes')) _currentMinutes = (data['totalMinutes'] as num).toInt();
+              if (data.containsKey('totalSolved')) _totalSolved = (data['totalSolved'] as num).toInt();
+              if (data.containsKey('totalCorrect')) {
+                _totalCorrect = (data['totalCorrect'] as num).toInt();
+              } else {
+                _totalCorrect = 0; 
+              }
+              _isLoading = false;
+            });
+          }
         }
-      } catch (e) {
-        debugPrint("Hata: $e");
-      }
+      }, onError: (e) {
+        debugPrint("Veri dinleme hatası: $e");
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Sayfa listesini güncelle (Verileri Dashboard'a aktar)
     List<Widget> currentPages = [
       DashboardScreen(
         targetBranch: _targetBranch,
         dailyGoal: _dailyGoal,
         currentMinutes: _currentMinutes,
         totalSolved: _totalSolved,
-        onRefresh: _fetchUserData, // Geri dönünce veriyi güncelle
+        totalCorrect: _totalCorrect,
+        onRefresh: () {}, // Stream olduğu için manuel refreshe gerek kalmadı
       ),
       const BlogScreen(),
       const Scaffold(body: Center(child: Text("Analiz Ekranı Hazırlanıyor..."))),
@@ -123,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),
             destinations: [
               _buildNavDest(Icons.home_outlined, Icons.home, 0),
-              _buildNavDest(Icons.book_outlined, Icons.book, 1), // Kütüphane / Blog
+              _buildNavDest(Icons.book_outlined, Icons.book, 1),
               _buildNavDest(Icons.bar_chart_outlined, Icons.bar_chart, 2),
               _buildNavDest(Icons.person_outline, Icons.person, 3),
             ],
@@ -134,10 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   NavigationDestination _buildNavDest(IconData icon, IconData activeIcon, int idx) {
-    // ignore: unused_local_variable
-    final isActive = _selectedIndex == idx;
     return NavigationDestination(
-      // DÜZELTME 1: Colors.slate -> Colors.blueGrey
       icon: Icon(icon, color: Colors.blueGrey.shade400, size: 28),
       selectedIcon: Column(
         mainAxisSize: MainAxisSize.min,
@@ -153,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // =============================================================================
-// ||                       YENİ TASARIMLI DASHBOARD                          ||
+// ||                          DASHBOARD EKRANI                               ||
 // =============================================================================
 
 class DashboardScreen extends StatelessWidget {
@@ -161,6 +172,7 @@ class DashboardScreen extends StatelessWidget {
   final int dailyGoal;
   final int currentMinutes;
   final int totalSolved;
+  final int totalCorrect;
   final VoidCallback onRefresh;
 
   const DashboardScreen({
@@ -169,10 +181,24 @@ class DashboardScreen extends StatelessWidget {
     required this.dailyGoal,
     required this.currentMinutes,
     required this.totalSolved,
+    required this.totalCorrect,
     required this.onRefresh,
   });
 
-  // --- 1. Konu Seçimi Bottom Sheet ---
+  String _getGreeting() {
+    var hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'Günaydın';
+    if (hour >= 12 && hour < 17) return 'İyi Günler';
+    if (hour >= 17 && hour < 23) return 'İyi Akşamlar';
+    return 'İyi Geceler';
+  }
+
+  String _calculateSuccessRate() {
+    if (totalSolved == 0) return '%0';
+    double rate = (totalCorrect.toDouble() / totalSolved.toDouble()) * 100;
+    return '%${rate.toStringAsFixed(0)}';
+  }
+
   void _showTopicSelection(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -235,7 +261,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- 2. Deneme Sınavı Bottom Sheet ---
   void _showDenemeSelection(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -278,11 +303,11 @@ class DashboardScreen extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       child: Column(
         children: [
-          // HEADER (TEAL ALAN)
+          // --- HEADER KISMI ---
           Container(
             padding: const EdgeInsets.fromLTRB(24, 60, 24, 80),
             decoration: const BoxDecoration(
-              color: Color.fromARGB(255, 13, 72, 161),
+              color: Color(0xFF0D47A1), 
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(40)),
             ),
             child: Column(
@@ -294,12 +319,17 @@ class DashboardScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('İyi Akşamlar,', style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
+                        Text('${_getGreeting()}, Doktor', 
+                          style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
+                        
                         SizedBox(
-                          width: 200,
-                          child: Text(targetBranch, 
-                            maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                          width: 300, 
+                          child: Text(
+                            'Hedef: $targetBranch Uzmanlığı', 
+                            maxLines: 1, 
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold) 
+                          ),
                         ),
                       ],
                     ),
@@ -315,14 +345,14 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     _buildMiniStat(Icons.check_circle_outline, '$totalSolved', 'Çözülen Soru', Colors.orange.shade400),
                     const SizedBox(width: 16),
-                    _buildMiniStat(Icons.track_changes, '%74', 'Başarı Oranı', Colors.green.shade400),
+                    _buildMiniStat(Icons.track_changes, _calculateSuccessRate(), 'Başarı Oranı', Colors.green.shade400),
                   ],
                 ),
               ],
             ),
           ),
 
-          // GOAL CARD (BEYAZ KART)
+          // --- HEDEF KARTLARI (PROGRESS CIRCLE DÜZELTİLDİ) ---
           Transform.translate(
             offset: const Offset(0, -40),
             child: Padding(
@@ -341,7 +371,7 @@ class DashboardScreen extends StatelessWidget {
                       children: [
                         Text("Bugünkü Hedefler", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
                         TextButton(
-                          onPressed: onRefresh, // Yenile butonu
+                          onPressed: onRefresh, 
                           child: const Text("Yenile", style: TextStyle(color: Colors.orange)),
                         )
                       ],
@@ -349,12 +379,25 @@ class DashboardScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     Row(
                       children: [
-                        // Hedef Soru (Sabit 100 varsayalım veya DB'den çekilebilir)
-                        Expanded(child: _buildGoalCircle('0', '100 Soru', Colors.teal)),
-                        // DÜZELTME 2: Colors.slate -> Colors.blueGrey
+                        // SORU HEDEFİ (100 soru varsayılan)
+                        Expanded(
+                          child: _buildGoalCircle(
+                            '$totalSolved', 
+                            '100 Soru', 
+                            Colors.teal,
+                            (totalSolved / 100).clamp(0.0, 1.0) // İlerleme Oranı
+                          )
+                        ),
                         Container(width: 1, height: 60, color: Colors.blueGrey.shade100),
-                        // Hedef Süre (Firebase'den gelen)
-                        Expanded(child: _buildGoalCircle('$currentMinutes', '$dailyGoal Dakika', Colors.orange)),
+                        // SÜRE HEDEFİ
+                        Expanded(
+                          child: _buildGoalCircle(
+                            '$currentMinutes', 
+                            '$dailyGoal Dakika', 
+                            Colors.orange,
+                            dailyGoal > 0 ? (currentMinutes / dailyGoal).clamp(0.0, 1.0) : 0.0 // İlerleme Oranı
+                          )
+                        ),
                       ],
                     ),
                   ],
@@ -363,7 +406,7 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
 
-          // ACTION GRID (BUTONLAR)
+          // --- GRID BUTONLAR ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: LayoutBuilder(
@@ -372,15 +415,12 @@ class DashboardScreen extends StatelessWidget {
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // 1. PRATİK (Soru Çözme)
                     _buildActionBtn('Pratik', 'Soru Çöz', Icons.play_arrow, const Color(0xFF0D47A1), itemWidth,
                       onTap: () => _showTopicSelection(context)),
                     
-                    // 2. DENEME (Sınav)
                     _buildActionBtn('Deneme', 'Süre tut', Icons.emoji_events, const Color.fromARGB(255, 0, 150, 136), itemWidth,
                       onTap: () => _showDenemeSelection(context)),
                     
-                    // 3. YANLIŞLARIM (Eski MistakesScreen)
                     _buildActionBtn('Yanlışlar', 'Hatalarını Gör', Icons.refresh, const Color.fromARGB(255, 205, 16, 35), itemWidth,
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => MistakesDashboard()));
@@ -392,7 +432,7 @@ class DashboardScreen extends StatelessWidget {
           ),
 
           const SizedBox(height: 32),
-          // ALT İSTATİSTİK BAR
+          // --- ALT İSTATİSTİK BAR ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
@@ -401,14 +441,12 @@ class DashboardScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Genel İlerleme', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
-                    // DÜZELTME 3: Colors.slate -> Colors.blueGrey
                     Text('$totalSolved / 4764', style: GoogleFonts.inter(color: Colors.blueGrey.shade400, fontSize: 12, fontWeight: FontWeight.bold)),
                   ],
                 ),
                 const SizedBox(height: 12),
                 LinearProgressIndicator(
-                  value: totalSolved / 4764, // Örnek oran
-                  // DÜZELTME 4: Colors.slate -> Colors.blueGrey
+                  value: totalSolved / 4764, 
                   backgroundColor: Colors.blueGrey.shade100, 
                   color: const Color(0xFF0D9488), 
                   borderRadius: BorderRadius.circular(10), 
@@ -423,7 +461,8 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- WIDGET BUILDERS ---
+  // --- YARDIMCI WIDGET'LAR ---
+
   Widget _buildMiniStat(IconData icon, String val, String label, Color color) {
     return Expanded(
       child: Container(
@@ -448,19 +487,36 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGoalCircle(String val, String sub, Color color) {
+  // Düzeltilmiş Daire Fonksiyonu (4 Parametreli)
+  Widget _buildGoalCircle(String val, String sub, Color color, double progress) {
     return Column(
       children: [
-        Container(
+        SizedBox(
           width: 70, height: 70,
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: color.withOpacity(0.1), width: 4)),
-          alignment: Alignment.center,
-          // DÜZELTME 5: FontWeight.black -> FontWeight.w900
-          child: Text(val, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Arka plandaki silik halka
+              CircularProgressIndicator(
+                value: 1.0, 
+                color: color.withOpacity(0.1),
+                strokeWidth: 6, 
+              ),
+              // 2. İlerleme halkası (progress değerine göre dolar)
+              CircularProgressIndicator(
+                value: progress, 
+                color: color,
+                strokeWidth: 6,
+                strokeCap: StrokeCap.round, 
+              ),
+              // 3. Ortadaki Değer
+              Center(
+                child: Text(val, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
-        // DÜZELTME 6: Colors.slate -> Colors.blueGrey
-        // DÜZELTME 7: FontWeight.medium -> FontWeight.w500
         Text(sub, style: GoogleFonts.inter(color: Colors.blueGrey.shade400, fontSize: 11, fontWeight: FontWeight.w500)),
       ],
     );
