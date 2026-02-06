@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:confetti/confetti.dart';
+// lib/screens/home_screen.dart en üste ekle:
+import '../services/mistakes_service.dart';
+import '../models/question_model.dart';
 
 // --- MEVCUT SAYFA IMPORTLARI ---
 import 'topic_selection_screen.dart'; 
@@ -199,67 +202,161 @@ class DashboardScreen extends StatelessWidget {
     return '%${rate.toStringAsFixed(0)}';
   }
 
-  void _showTopicSelection(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: 300,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Text("Çalışma Alanı Seç", style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            Row(
+// --- GÜNCELLENMİŞ ÇALIŞMA ALANI SEÇİMİ ---
+// --- GÜNCELLENMİŞ MODERN ÇALIŞMA ALANI SEÇİMİ ---
+void _showTopicSelection(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent, // Arka planı şeffaf yapıyoruz ki köşeleri biz yönetelim
+    isScrollControlled: true,
+    builder: (context) => Container(
+      height: 480, 
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Gri Çizgi (Sürükleme İşareti)
+          Center(
+            child: Container(
+              width: 40, height: 4, 
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))
+            ),
+          ),
+          
+          Text("Çalışma Alanı", style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
+          const SizedBox(height: 4),
+          Text("Hangi alanda pratik yapmak istersin?", style: GoogleFonts.inter(fontSize: 14, color: Colors.blueGrey.shade400)),
+          const SizedBox(height: 32),
+          
+          // --- TEMEL VE KLİNİK (YAN YANA KARTLAR) ---
+          Row(
+            children: [
+              Expanded(
+                child: _buildModernCard(
+                  context, 
+                  title: "Temel\nBilimler", 
+                  icon: Icons.biotech_outlined, 
+                  color: Colors.orange, 
+                  topics: ["Anatomi","Histoloji ve Embriyoloji" ,"Fizyoloji", "Biyokimya", "Mikrobiyoloji", "Patoloji", "Farmakoloji","Biyoloji ve Genetik"]
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildModernCard(
+                  context, 
+                  title: "Klinik\nBilimler", 
+                  icon: Icons.health_and_safety_outlined, 
+                  color: Colors.blue, 
+                  topics: ["Protetik Diş Tedavisi", "Restoratif Diş Tedavisi", "Endodonti", "Periodontoloji", "Ortodonti", "Pedodonti", "Ağız, Diş ve Çene Cerrahisi", "Ağız, Diş ve Çene Radyolojisi"]
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+
+          // --- SINAV PROVASI (GENİŞ KART) ---
+          _buildModernCard(
+            context,
+            title: "Sınav Provası",
+            subtitle: "Tüm derslerden karışık deneme",
+            icon: Icons.timer_outlined,
+            color: const Color(0xFF673AB7),
+            isWide: true,
+            onTapOverride: () {
+               Navigator.pop(context);
+               Navigator.push(context, MaterialPageRoute(builder: (context) => const QuizScreen(isTrial: true, fixedDuration: 150)));
+            }
+          ),
+        ],
+      ),
+    ),
+  );
+}
+// --- MODERN KART TASARIMI (INKWELL İLE TIKLAMA HİSSİYATI) ---
+Widget _buildModernCard(BuildContext context, {
+  required String title, 
+  required IconData icon, 
+  required Color color, 
+  List<String>? topics,
+  String? subtitle,
+  bool isWide = false,
+  VoidCallback? onTapOverride
+}) {
+  return Container(
+    height: isWide ? 100 : 160,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: Colors.grey.withOpacity(0.1)),
+      boxShadow: [
+        BoxShadow(color: color.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 10)),
+        BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5, offset: const Offset(0, 2)),
+      ]
+    ),
+    child: Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        splashColor: color.withOpacity(0.1),
+        highlightColor: color.withOpacity(0.05),
+        onTap: onTapOverride ?? () {
+          Navigator.pop(context);
+          if (topics != null) {
+            Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (context) => TopicSelectionScreen(title: title.replaceAll('\n', ' '), topics: topics, themeColor: color))
+            ).then((_) => onRefresh());
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: isWide 
+          ? Row( // Geniş kart (Sınav Provası için)
               children: [
-                Expanded(
-                  child: _buildSheetOption(
-                    context, "Temel Bilimler", Colors.orange, 
-                    ["Anatomi","Histoloji ve Embriyoloji" ,"Fizyoloji", "Biyokimya", "Mikrobiyoloji", "Patoloji", "Farmakoloji","Biyoloji ve Genetik"]
-                  ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                  child: Icon(icon, color: color, size: 28),
                 ),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: _buildSheetOption(
-                    context, "Klinik Bilimler", Colors.blue, 
-                    ["Protetik Diş Tedavisi", "Restoratif Diş Tedavisi", "Endodonti", "Periodontoloji", "Ortodonti", "Pedodonti", "Ağız, Diş ve Çene Cerrahisi", "Ağız, Diş ve Çene Radyolojisi"]
-                  ),
-                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(title, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
+                    if (subtitle != null)
+                      Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: Colors.blueGrey)),
+                  ],
+                )
               ],
             )
-          ],
+          : Column( // Dikey kartlar (Dersler için)
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                  child: Icon(icon, color: color, size: 32),
+                ),
+                Text(title, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B), height: 1.2)),
+              ],
+            ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSheetOption(BuildContext context, String title, Color color, List<String> topics) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pop(context);
-        Navigator.push(
-          context, 
-          MaterialPageRoute(builder: (context) => TopicSelectionScreen(title: title, topics: topics, themeColor: color))
-        ).then((_) => onRefresh());
-      },
-      child: Container(
-        height: 120,
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.3))),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.library_books, color: color, size: 32),
-            const SizedBox(height: 12),
-            Text(title, style: GoogleFonts.inter(color: color, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
-  }
+    ),
+  );
+}
 
   void _showDenemeSelection(BuildContext context) {
     showModalBottomSheet(
@@ -418,9 +515,13 @@ class DashboardScreen extends StatelessWidget {
                     _buildActionBtn('Pratik', 'Soru Çöz', Icons.play_arrow, const Color(0xFF0D47A1), itemWidth,
                       onTap: () => _showTopicSelection(context)),
                     
-                    _buildActionBtn('Deneme', 'Süre tut', Icons.emoji_events, const Color.fromARGB(255, 0, 150, 136), itemWidth,
-                      onTap: () => _showDenemeSelection(context)),
-                    
+                    _buildActionBtn('Bilgi Kartları', 'Hızlı Tekrar', Icons.emoji_events, const Color.fromARGB(255, 0, 150, 136), itemWidth,
+                      onTap: () {
+                        // Şimdilik boş, daha sonra doldurulacak
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Bilgi Kartları modülü hazırlanıyor..."))
+                      );
+                      }),                    
                     _buildActionBtn('Yanlışlar', 'Hatalarını Gör', Icons.refresh, const Color.fromARGB(255, 205, 16, 35), itemWidth,
                       onTap: () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => MistakesDashboard()));
