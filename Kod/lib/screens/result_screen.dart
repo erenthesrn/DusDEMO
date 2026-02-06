@@ -3,9 +3,7 @@
 import 'package:flutter/material.dart';
 import '../models/question_model.dart';
 import 'quiz_screen.dart';
-// --- YENİ EKLENEN IMPORT ---
 import '../services/achievement_service.dart'; 
-// ---------------------------
 
 class ResultScreen extends StatefulWidget {
   final List<Question> questions;
@@ -35,31 +33,26 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen> {
   
-  // --- GÜNCELLENEN KISIM (INITSTATE) ---
   @override
   void initState() {
     super.initState();
     
-    // Sayfa çizildikten hemen sonra achievement servisini çalıştır
+    // Rozet kontrolleri
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // 1. Kategori ve doğru sayısını kaydet (Örn: Anatomi Kurdu rozeti için)
       AchievementService.instance.incrementCategory(
         context, 
-        widget.topic,        // Kategori ismi (Anatomi, Biyokimya vb.)
-        widget.correctCount, // Doğru sayısı
+        widget.topic,
+        widget.correctCount, 
       );
 
-      // 2. Skor ve Saat kontrolü yap (Örn: Kusursuz veya Gece Kuşu rozeti için)
-      // Not: Max puanı standart 100 varsaydık.
       AchievementService.instance.checkTimeAndScore(
         context, 
         widget.score, 
         100, 
-        widget.correctCount // 🔥 YENİ EKLENEN PARAMETRE (Şanslı Yedili için)
+        widget.correctCount 
       );
     });
   }
-  // -------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +63,7 @@ class _ResultScreenState extends State<ResultScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black87,
-        automaticallyImplyLeading: false, // Geri butonunu kaldırıyoruz
+        automaticallyImplyLeading: false, 
       ),
       body: Column(
         children: [
@@ -130,19 +123,18 @@ class _ResultScreenState extends State<ResultScreen> {
                 int? userAnswer = widget.userAnswers[index]; 
                 int correctAnswer = widget.questions[index].answerIndex;
                 
-                // Renk Belirleme
                 Color bgColor;
                 if (userAnswer == null) {
-                  bgColor = Colors.grey.shade300; // Boş
+                  bgColor = Colors.grey.shade300; 
                 } else if (userAnswer == correctAnswer) {
-                  bgColor = Colors.green; // Doğru
+                  bgColor = Colors.green; 
                 } else {
-                  bgColor = Colors.red; // Yanlış
+                  bgColor = Colors.red; 
                 }
 
                 return InkWell(
                   onTap: () {
-                    // 🔥 İNCELEME MODU: Tıklanan soruya git
+                    // İnceleme moduna git
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -150,12 +142,10 @@ class _ResultScreenState extends State<ResultScreen> {
                           isTrial: false,
                           topic: widget.topic,
                           testNo: widget.testNo,
-                          
-                          // 🔥 BU PARAMETRELER ÇOK ÖNEMLİ:
-                          questions: widget.questions, // Aynı soruları gönder
-                          userAnswers: widget.userAnswers, // Kullanıcının cevaplarını gönder
-                          initialIndex: index, // Tıkladığı sorudan başla
-                          isReviewMode: true, // İNCELEME MODUNU AÇ
+                          questions: widget.questions,
+                          userAnswers: widget.userAnswers,
+                          initialIndex: index,
+                          isReviewMode: true,
                         ),
                       ),
                     );
@@ -184,9 +174,10 @@ class _ResultScreenState extends State<ResultScreen> {
               height: 50,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // Tüm ekranları kapatıp Test Listesine dön
+                  // DÜZELTİLEN KISIM BURASI:
+                  // Sadece 1 kere pop yapıyoruz.
+                  // Çünkü QuizScreen zaten bizi bekliyor, geri dönünce o da kendini kapatacak.
                   Navigator.pop(context); 
-                  Navigator.pop(context);
                 },
                 icon: const Icon(Icons.home_rounded),
                 label: const Text("Listeye Dön"),

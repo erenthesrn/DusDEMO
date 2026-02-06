@@ -310,7 +310,7 @@ class _QuizScreenState extends State<QuizScreen> {
   }
   
   // 🔥🔥🔥 KRİTİK GÜNCELLEME BURADA 🔥🔥🔥
-  void _showFinishDialog({bool timeUp = false}) {
+void _showFinishDialog({bool timeUp = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -332,40 +332,56 @@ class _QuizScreenState extends State<QuizScreen> {
               int correct = 0;
               int wrong = 0;  
               int empty = 0;
+              
               List<Map<String, dynamic>> wrongQuestionsToSave = [];
+              List<Map<String, dynamic>> correctQuestionsToRemove = [];
+
+              // Bu sınavın "Yanlışlarım" ekranından gelip gelmediğini kontrol et
+              bool isMistakeReview = widget.questions != null && widget.questions!.isNotEmpty;
 
               for (int i = 0; i < _questions.length; i++) {
                 if (_userAnswers[i] == null) {
-                  // 🔥 BOŞ CEVAP: Wrong artmaz, sadece Empty artar.
+                  // BOŞ
                   empty++;
-                  // Tekrar listesine ekle (kullanıcı isteği)
-                  wrongQuestionsToSave.add({
-                    'id': _questions[i].id,
-                    'question': _questions[i].question,
-                    'options': _questions[i].options,
-                    'correctIndex': _questions[i].answerIndex,
-                    'userIndex': -1, 
-                    'subject': widget.topic ?? "Genel",
-                    'explanation': _questions[i].explanation,
-                    'date': DateTime.now().toIso8601String(),
-                  });
+                  // Sadece normal sınav modundaysak kaydedilecekler listesine ekle
+                  if (!isMistakeReview) {
+                    wrongQuestionsToSave.add({
+                      'id': _questions[i].id,
+                      'question': _questions[i].question,
+                      'options': _questions[i].options,
+                      'correctIndex': _questions[i].answerIndex,
+                      'userIndex': -1, 
+                      'subject': widget.topic ?? "Genel",
+                      'explanation': _questions[i].explanation,
+                      'date': DateTime.now().toIso8601String(),
+                    });
+                  }
                 } else if (_userAnswers[i] == _questions[i].answerIndex) {
-                  // DOĞRU CEVAP
+                  // DOĞRU
                   correct++;
+                  // Yanlış tekrarındaysak, bunu silinecekler listesine ekle
+                  if (isMistakeReview) {
+                     correctQuestionsToRemove.add({
+                       'id': _questions[i].id,
+                       'subject': widget.topic ?? "Genel" // Burası önemli değil, ID yeterli olur genelde
+                     });
+                  }
                 } else {
-                  // 🔥 YANLIŞ CEVAP: Sadece burası Wrong'u artırır.
+                  // YANLIŞ
                   wrong++;
-                  // Tekrar listesine ekle
-                  wrongQuestionsToSave.add({
-                    'id': _questions[i].id,
-                    'question': _questions[i].question,
-                    'options': _questions[i].options,
-                    'correctIndex': _questions[i].answerIndex,
-                    'userIndex': _userAnswers[i],
-                    'subject': widget.topic ?? "Genel",
-                    'explanation': _questions[i].explanation,
-                    'date': DateTime.now().toIso8601String(),
-                  });
+                  // Sadece normal sınav modundaysak kaydedilecekler listesine ekle
+                  if (!isMistakeReview) {
+                    wrongQuestionsToSave.add({
+                      'id': _questions[i].id,
+                      'question': _questions[i].question,
+                      'options': _questions[i].options,
+                      'correctIndex': _questions[i].answerIndex,
+                      'userIndex': _userAnswers[i],
+                      'subject': widget.topic ?? "Genel",
+                      'explanation': _questions[i].explanation,
+                      'date': DateTime.now().toIso8601String(),
+                    });
+                  }
                 }
               }
 
@@ -374,28 +390,19 @@ class _QuizScreenState extends State<QuizScreen> {
                 score = ((correct / _questions.length) * 100).toInt();
               }
 
-              if (mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ResultScreen(
-                      questions: _questions,
-                      userAnswers: _userAnswers,
-                      topic: widget.topic ?? "",
-                      testNo: widget.testNo ?? 1,
-                      correctCount: correct,
-                      wrongCount: wrong, // 🔥 Sadece net yanlışları gönder
-                      emptyCount: empty, // 🔥 Boşları ayrı gönder
-                      score: score,
-                    ),
-                  ),
-                );
+              // --- VERİTABANI İŞLEMLERİ ---
+              
+              // 1. Yeni Yanlışları Kaydet (Sadece Normal Modda - Yukarıda if kontrolü ile listeyi doldurduk zaten)
+              if (wrongQuestionsToSave.isNotEmpty) {
+                await MistakesService.addMistakes(wrongQuestionsToSave);
               }
               
-              if (wrongQuestionsToSave.isNotEmpty) {
-                MistakesService.addMistakes(wrongQuestionsToSave);
+              // 2. Düzeltilen Yanlışları Sil (Sadece Review Modda)
+              if (correctQuestionsToRemove.isNotEmpty) {
+                await MistakesService.removeMistakeList(correctQuestionsToRemove);
               }
 
+              // 3. İstatistikleri Kaydet
               if (!widget.isTrial && widget.topic != null && widget.testNo != null) {
                 QuizService.saveQuizResult(
                   topic: widget.topic!,
@@ -408,10 +415,30 @@ class _QuizScreenState extends State<QuizScreen> {
               }
 
               if (!widget.isReviewMode) {
-                // İstatistiklerde 'wrong + empty' gönderirsek çözülen soru sayısı artar.
-                // Eğer başarı oranını etkilemesin istiyorsan burayı sadece 'wrong' yapabilirsin.
-                // Standart test mantığı: Boşlar da çözüldü (görüldü) sayılır.
                 _updateFirebaseStats(correct, wrong + empty); 
+              }
+
+              // --- SONUÇ EKRANINA GİT ---
+              if (mounted) {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ResultScreen(
+                      questions: _questions,
+                      userAnswers: _userAnswers,
+                      topic: widget.topic ?? "",
+                      testNo: widget.testNo ?? 1,
+                      correctCount: correct,
+                      wrongCount: wrong,
+                      emptyCount: empty,
+                      score: score,
+                    ),
+                  ),
+                );
+                // Sonuç ekranından dönüldüğünde Quiz ekranını kapat
+                if(mounted){
+                  Navigator.pop(context);
+                }
               }
             },
             child: const Text("Bitir"),
@@ -420,7 +447,7 @@ class _QuizScreenState extends State<QuizScreen> {
       ),
     );
   }
-
+  
   Future<void> _updateFirebaseStats(int correct, int wrong) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
