@@ -363,7 +363,7 @@ void _showFinishDialog({bool timeUp = false}) {
                   if (isMistakeReview) {
                      correctQuestionsToRemove.add({
                        'id': _questions[i].id,
-                       'subject': widget.topic ?? "Genel" // Burası önemli değil, ID yeterli olur genelde
+                       'subject': _questions[i].level
                      });
                   }
                 } else {
@@ -447,7 +447,7 @@ void _showFinishDialog({bool timeUp = false}) {
       ),
     );
   }
-  
+
   Future<void> _updateFirebaseStats(int correct, int wrong) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) return;

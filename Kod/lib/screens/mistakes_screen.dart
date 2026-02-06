@@ -312,6 +312,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
   }
 
   // --- YENİ EKLENEN KISIM: QUIZ BAŞLATMA ---
+// --- YENİ EKLENEN KISIM: QUIZ BAŞLATMA ---
   void _startMistakeQuiz() async {
     // Verileri Question Modeline çeviriyoruz
     List<Question> questionList = _currentList.map<Question>((m) {
@@ -322,9 +323,12 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
         answerIndex: m['correctIndex'],
         explanation: m['explanation'] ?? "",
         testNo: 0,
-        level: "Karışık", // <-- HATA VEREN KISIM BURAYDI, DÜZELDİ.
+        // 🔥 DÜZELTME BURADA: "Karışık" yerine m['subject'] kullanıyoruz.
+        level: m['subject'] ?? "Genel", 
       );
     }).toList();
+
+    // ... kodun devamı aynı ...
 
     // Quiz ekranına git ve dönmesini bekle
     await Navigator.push(

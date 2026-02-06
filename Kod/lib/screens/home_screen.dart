@@ -83,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // --- YARDIMCI: MISTAKE MAP -> QUESTION OBJECT DÖNÜŞÜMÜ ---
+// --- YARDIMCI: MISTAKE MAP -> QUESTION OBJECT DÖNÜŞÜMÜ ---
   List<Question> _convertMistakesToQuestions(List<Map<String, dynamic>> mistakes) {
     return mistakes.map((m) {
       return Question(
@@ -92,7 +93,9 @@ class _HomeScreenState extends State<HomeScreen> {
         answerIndex: m['correctIndex'],
         explanation: m['explanation'] ?? "",
         testNo: 0, 
-        level: "Tekrar", 
+        // 🔥 ÖNEMLİ DEĞİŞİKLİK: 'level' alanına dersin orijinal adını koyuyoruz.
+        // Böylece Quiz ekranında hangi dersi sileceğimizi bileceğiz.
+        level: m['subject'] ?? "Genel", 
       );
     }).toList();
   }
