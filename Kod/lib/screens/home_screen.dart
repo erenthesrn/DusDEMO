@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentMinutes = 0;
   int _totalSolved = 0;
   int _totalCorrect = 0; 
-  bool _isLoading = true; 
+  // bool _isLoading = true; 
 
   late ConfettiController _confettiController;
   StreamSubscription<DocumentSnapshot>? _userSubscription;
@@ -73,7 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
               } else {
                 _totalCorrect = 0; 
               }
-              _isLoading = false;
             });
           }
         }
@@ -173,10 +172,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- 2. MODÜL: YANLIŞLAR MENÜSÜ ---
-// --- 2. MODÜL: YANLIŞLAR MENÜSÜ (MODERN TASARIM) ---
+  // --- 2. MODÜL: YANLIŞLAR MENÜSÜ (MODERN TASARIM) ---
   void _showMistakesMenu(BuildContext context) async {
-    // Yanlış sayısını çekelim (Subtitle'da göstermek için)
     List<Map<String, dynamic>> mistakes = await MistakesService.getMistakes();
     int count = mistakes.length;
 
@@ -215,7 +212,6 @@ class _HomeScreenState extends State<HomeScreen> {
               // --- KARTLAR ---
               Row(
                 children: [
-                  // 1. KART: KARIŞIK TEKRAR
                   Expanded(
                     child: _buildModernCard(
                       context, 
@@ -229,7 +225,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Henüz yanlışın yok! Harikasın 🎉")));
                           return;
                         }
-                        // Karıştır ve Sınavı Başlat
                         List<Map<String, dynamic>> shuffled = List.from(mistakes)..shuffle();
                         List<Question> questions = _convertMistakesToQuestions(shuffled);
                         
@@ -243,7 +238,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 16),
                   
-                  // 2. KART: KONU BAZLI
                   Expanded(
                     child: _buildModernCard(
                       context, 
@@ -266,7 +260,6 @@ class _HomeScreenState extends State<HomeScreen> {
               
               const SizedBox(height: 16),
 
-              // 3. GENİŞ KART: LİSTEYİ İNCELE (Eksiklerimi Kapat)
               _buildModernCard(
                 context,
                 title: "Listeyi İncele",
@@ -279,93 +272,6 @@ class _HomeScreenState extends State<HomeScreen> {
                    Navigator.push(context, MaterialPageRoute(builder: (context) => const MistakesDashboard()));
                 }
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  // --- 3. MODÜL: YANLIŞ SINAVI SEÇİM EKRANI (GÜNCELLENDİ) ---
-  void _showMistakeQuizSelection(BuildContext context) async {
-    List<Map<String, dynamic>> mistakes = await MistakesService.getMistakes();
-
-    if (mistakes.isEmpty) {
-      if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Henüz hiç yanlışın yok! Harikasın 🎉")));
-      }
-      return;
-    }
-
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40, height: 4, 
-                  margin: const EdgeInsets.only(bottom: 24),
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))
-                ),
-              ),
-              
-              Text("Tekrar Modu", style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: const Color(0xFF1E293B))),
-              const SizedBox(height: 4),
-              Text("Yanlışlarını nasıl çözmek istersin?", style: GoogleFonts.inter(fontSize: 14, color: Colors.blueGrey.shade400)),
-              const SizedBox(height: 32),
-              
-              // 🔥 GÜNCELLEME: Sadece 2 seçenek kaldı (Karışık & Konu Bazlı)
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildModernCard(
-                      context, 
-                      title: "Karışık\nTekrar", 
-                      icon: Icons.shuffle_rounded, 
-                      color: Colors.purple, 
-                      subtitle: "${mistakes.length} Soru",
-                      onTapOverride: () {
-                        Navigator.pop(context);
-                        List<Map<String, dynamic>> shuffled = List.from(mistakes)..shuffle();
-                        List<Question> questions = _convertMistakesToQuestions(shuffled);
-                        
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => QuizScreen(
-                          isTrial: true, 
-                          questions: questions,
-                          topic: "Karışık Yanlış Tekrarı",
-                        )));
-                      }
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildModernCard(
-                      context, 
-                      title: "Konu\nBazlı", 
-                      icon: Icons.filter_list_rounded, 
-                      color: Colors.teal, 
-                      subtitle: "Ders Seç",
-                      onTapOverride: () {
-                        Navigator.pop(context);
-                        _showSubjectSelectionList(context, mistakes);
-                      }
-                    ),
-                  ),
-                ],
-              ),
-              // "Hepsini Sırayla Çöz" butonu kaldırıldı.
             ],
           ),
         ),
@@ -444,7 +350,8 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.grey.withOpacity(0.1)),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))]
+          // 🔥 PERFORMANS: Blur 10 -> 4
+          boxShadow: [BoxShadow(color: color.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 4))]
         ),
         child: Row(
           children: [
@@ -487,9 +394,10 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        // 🔥 PERFORMANS: Blur 20 -> 8
         boxShadow: [
-          BoxShadow(color: color.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 10)),
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5, offset: const Offset(0, 2)),
+          BoxShadow(color: color.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 5)),
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 2, offset: const Offset(0, 1)),
         ]
       ),
       child: Material(
@@ -582,11 +490,16 @@ class _HomeScreenState extends State<HomeScreen> {
             index: _selectedIndex,
             children: currentPages,
           ),
-          ConfettiWidget(
-            confettiController: _confettiController,
-            blastDirectionality: BlastDirectionality.explosive,
-            shouldLoop: false,
-            colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange],
+          // 🔥 PERFORMANS: Confetti ayrı çizim katmanına alındı.
+          IgnorePointer(
+            child: RepaintBoundary(
+              child: ConfettiWidget(
+                confettiController: _confettiController,
+                blastDirectionality: BlastDirectionality.explosive,
+                shouldLoop: false,
+                colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange],
+              ),
+            ),
           ),
         ],
       ),
@@ -594,11 +507,12 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          // 🔥 PERFORMANS: Blur 40 -> 15
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
-              blurRadius: 40,
-              offset: const Offset(0, -10),
+              blurRadius: 15, 
+              offset: const Offset(0, -5),
             ),
           ],
         ),
@@ -685,52 +599,64 @@ class DashboardScreen extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       child: Column(
         children: [
-          // --- HEADER KISMI ---
+          // --- HEADER KISMI (DÜZELTİLDİ: SafeArea + Expanded) ---
           Container(
-            padding: const EdgeInsets.fromLTRB(24, 60, 24, 80),
+            width: double.infinity,
             decoration: const BoxDecoration(
               color: Color(0xFF0D47A1), 
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(40)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // 🔥 SAFE AREA: Çentik ve durum çubuğunu korur
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 80), // Üst boşluk optimize edildi
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${_getGreeting()}, Doktor', 
-                          style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
-                        
-                        SizedBox(
-                          width: 300, 
-                          child: Text(
-                            'Hedef: $targetBranch Uzmanlığı', 
-                            maxLines: 1, 
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold) 
+                        // 🔥 EXPANDED: Yazı taşmasını önler
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${_getGreeting()}, Doktor', 
+                                style: GoogleFonts.inter(color: Colors.white70, fontSize: 14)),
+                              
+                              const SizedBox(height: 4),
+                              
+                              Text(
+                                'Hedef: $targetBranch Uzmanlığı', 
+                                maxLines: 2, // Gerekirse 2 satıra iner
+                                overflow: TextOverflow.ellipsis, // Sığmazsa ... koyar
+                                style: GoogleFonts.inter(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold) 
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(width: 16), // Boşluk
+                        // Bildirim Butonu
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(16)),
+                          child: const Icon(Icons.notifications_none, color: Colors.white),
+                        )
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(16)),
-                      child: const Icon(Icons.notifications_none, color: Colors.white),
-                    )
+                    const SizedBox(height: 32),
+                    Row(
+                      children: [
+                        _buildMiniStat(Icons.check_circle_outline, '$totalSolved', 'Çözülen Soru', Colors.orange.shade400),
+                        const SizedBox(width: 16),
+                        _buildMiniStat(Icons.track_changes, _calculateSuccessRate(), 'Başarı Oranı', Colors.green.shade400),
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    _buildMiniStat(Icons.check_circle_outline, '$totalSolved', 'Çözülen Soru', Colors.orange.shade400),
-                    const SizedBox(width: 16),
-                    _buildMiniStat(Icons.track_changes, _calculateSuccessRate(), 'Başarı Oranı', Colors.green.shade400),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
 
@@ -744,7 +670,8 @@ class DashboardScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(32),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 30, offset: const Offset(0, 10))],
+                  // 🔥 PERFORMANS: Blur 30 -> 10
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 5))],
                 ),
                 child: Column(
                   children: [
@@ -795,7 +722,6 @@ class DashboardScreen extends StatelessWidget {
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // PRATİK BUTONU
                     _buildActionBtn('Pratik', 'Soru Çöz', Icons.play_arrow, const Color(0xFF0D47A1), itemWidth,
                       onTap: () {
                          if (onPratikTap != null) onPratikTap!();
@@ -808,7 +734,6 @@ class DashboardScreen extends StatelessWidget {
                         );
                       }),       
 
-                    // YANLIŞLAR BUTONU     
                     _buildActionBtn('Yanlışlar', 'Hatalarını Gör', Icons.refresh, const Color.fromARGB(255, 205, 16, 35), itemWidth,
                       onTap: () {
                         if (onMistakesTap != null) {
@@ -854,7 +779,6 @@ class DashboardScreen extends StatelessWidget {
   }
 
   // --- YARDIMCI WIDGET'LAR ---
-
   Widget _buildMiniStat(IconData icon, String val, String label, Color color) {
     return Expanded(
       child: Container(
@@ -906,7 +830,12 @@ class DashboardScreen extends StatelessWidget {
         width: width,
         height: 160,
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))]),
+        decoration: BoxDecoration(
+          color: color, 
+          borderRadius: BorderRadius.circular(24), 
+          // 🔥 PERFORMANS: Blur 10 -> 4
+          boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 4))]
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
