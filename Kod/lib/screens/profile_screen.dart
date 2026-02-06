@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/theme_provider.dart'; // --- TEMA İÇİN ŞART ---
 import 'login_page.dart'; // Çıkış yapınca login sayfasına dönmek için
 import 'edit_profile_page.dart';
 import 'achievements_screen.dart'; // --- YENİ EKLENEN IMPORT ---
@@ -359,11 +360,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Tema verilerini anlık dinlemek için
+    final themeProvider = ThemeProvider.instance;
+
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 224, 247, 250),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Profilim", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color.fromARGB(255, 224, 247, 250),
+        title: Text("Profilim", style: TextStyle(color: Theme.of(context).textTheme.titleLarge?.color, fontWeight: FontWeight.bold)),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         centerTitle: true,
       ),
@@ -391,9 +395,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 12),
                   
                   Container(
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor, 
+                      borderRadius: BorderRadius.circular(16)
+                    ),
                     child: Column(
                       children: [
+                        // --- 🔥 KARANLIK MOD ŞALTERİ BURAYA EKLENDİ ---
+                        ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                            child: Icon(
+                              themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode, 
+                              color: Colors.blue
+                            ),
+                          ),
+                          title: const Text("Karanlık Mod", style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(themeProvider.isDarkMode ? "Açık" : "Kapalı"),
+                          trailing: Switch(
+                            value: themeProvider.isDarkMode,
+                            onChanged: (value) {
+                              setState(() {
+                                themeProvider.toggleTheme(value);
+                              });
+                            },
+                            activeColor: const Color(0xFF0D47A1),
+                          ),
+                        ),
+                        _buildDivider(),
+                        // ---------------------------------------------
+
                         _buildMenuItem(
                           Icons.person_outline, 
                           "Kişisel Bilgilerim", 
@@ -404,7 +436,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         _buildDivider(),
                         
-                        // --- 🔥 BURAYA ROZETLERİM BUTONUNU EKLEDİM ---
                         _buildMenuItem(
                           Icons.emoji_events_rounded, 
                           "Rozetlerim & Başarılar", 
@@ -414,7 +445,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           }
                         ),
                         _buildDivider(),
-                        // ---------------------------------------------
 
                         _buildMenuItem(
                           Icons.ads_click,
@@ -438,7 +468,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 12),
 
                   Container(
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor, 
+                      borderRadius: BorderRadius.circular(16)
+                    ),
                     child: Column(
                       children: [
                         _buildMenuItem(Icons.bug_report_outlined, "Hata Bildir", "Sorun mu var?", _showReportDialog),
@@ -490,7 +523,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))],
       ),
@@ -601,8 +634,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, color: Colors.blueGrey),
+        decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        child: Icon(icon, color: Theme.of(context).primaryColor),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(subtitle, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
@@ -612,6 +645,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildDivider() {
-    return Divider(height: 1, thickness: 1, color: Colors.grey[100], indent: 70);
+    return Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor.withOpacity(0.1), indent: 70);
   }
 }
