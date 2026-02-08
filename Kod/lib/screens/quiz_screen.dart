@@ -473,6 +473,8 @@ void _showFinishDialog({bool timeUp = false}) {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day); 
 
+      String todayStr = now.toIso8601String().split('T')[0];
+
       if (lastStudyDate == null) {
         currentStreak = 1;
       } else {
@@ -490,8 +492,14 @@ void _showFinishDialog({bool timeUp = false}) {
         'totalSolved': FieldValue.increment(totalSolvedNow),
         'totalMinutes': FieldValue.increment(minutesSpent),
         'totalCorrect': FieldValue.increment(correct), 
+
+        'dailySolved': FieldValue.increment(totalSolvedNow),
+        'dailyMinutes': FieldValue.increment(minutesSpent),
+
         'streak': currentStreak,
         'lastStudyDate': FieldValue.serverTimestamp(),
+        'lastActivityDate': todayStr,
+
       });
       
     } catch (e) {

@@ -31,7 +31,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- VERİ DEĞİŞKENLERİ ---
   String _targetBranch = "Hedef Seçiliyor...";
   int _dailyGoal = 60;
-  int _currentMinutes = 0;
+
+  int _dailyMinutes = 0;
+  int _dailySolved = 0;
   int _totalSolved = 0;
   int _totalCorrect = 0; 
 
@@ -60,28 +62,41 @@ class _HomeScreenState extends State<HomeScreen> {
           .collection('users')
           .doc(user.uid)
           .snapshots()
-          .listen((snapshot) {
+          .listen((snapshot) async {
         
         if (snapshot.exists && snapshot.data() != null) {
           Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+
+          String today = DateTime.now().toIso8601String().split('T')[0];
+          String lastDate = data['lastActivityDate'] ?? "";
           
+          if (lastDate != today){
+            await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+              'dailySolved':0,
+              'dailyMinutes':0,
+              'lastActivityDate': today,
+            });
+
+          }
+
           if (mounted) {
             setState(() {
               if (data.containsKey('targetBranch')) _targetBranch = data['targetBranch'];
               if (data.containsKey('dailyGoalMinutes')) _dailyGoal = (data['dailyGoalMinutes'] as num).toInt();
-              if (data.containsKey('totalMinutes')) _currentMinutes = (data['totalMinutes'] as num).toInt();
-              if (data.containsKey('totalSolved')) _totalSolved = (data['totalSolved'] as num).toInt();
               if (data.containsKey('showSuccessRate')) _showSuccessRate = data['showSuccessRate'];
-              if (data.containsKey('totalCorrect')) {
-                _totalCorrect = (data['totalCorrect'] as num).toInt();
-              } else {
-                _totalCorrect = 0; 
-              }
+
+              _totalSolved = (data['totalSolved'] ?? 0).toInt();
+              _totalCorrect = (data['totalCorrect'] ?? 0).toInt();
+              
+              // 🔥 Günlük verileri al (Yoksa 0 kabul et)
+              _dailySolved = (data['dailySolved'] ?? 0).toInt();
+              _dailyMinutes = (data['dailyMinutes'] ?? 0).toInt();
+
             });
           }
         }
-      }, onError: (e) {
-        debugPrint("Veri dinleme hatası: $e");
+          },  onError: (e) {
+              debugPrint("Veri dinleme hatası: $e");
       });
     }
   }
@@ -417,8 +432,11 @@ class _HomeScreenState extends State<HomeScreen> {
       DashboardScreen(
         targetBranch: _targetBranch,
         dailyGoal: _dailyGoal,
-        currentMinutes: _currentMinutes,
+
+        dailyMinutes: _dailyMinutes,
+        dailySolved: _dailySolved,
         totalSolved: _totalSolved,
+
         totalCorrect: _totalCorrect,
         showSuccessRate: _showSuccessRate,
         onRefresh: () {}, 
@@ -507,7 +525,8 @@ class _HomeScreenState extends State<HomeScreen> {
 class DashboardScreen extends StatelessWidget {
   final String targetBranch;
   final int dailyGoal;
-  final int currentMinutes;
+  final int dailyMinutes;
+  final int dailySolved;
   final int totalSolved;
   final int totalCorrect;
   final bool showSuccessRate;
@@ -520,7 +539,8 @@ class DashboardScreen extends StatelessWidget {
     super.key,
     required this.targetBranch,
     required this.dailyGoal,
-    required this.currentMinutes,
+    required this.dailyMinutes,
+    required this.dailySolved,
     required this.totalSolved,
     required this.totalCorrect,
     required this.showSuccessRate,
@@ -636,7 +656,7 @@ class DashboardScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _buildGoalCircle(
-                            '$totalSolved', 
+                            '$dailySolved', 
                             '100 Soru', 
                             Colors.teal,
                             (totalSolved / 100).clamp(0.0, 1.0) 
@@ -645,14 +665,18 @@ class DashboardScreen extends StatelessWidget {
                         Container(width: 1, height: 60, color: Colors.blueGrey.shade100),
                         Expanded(
                           child: _buildGoalCircle(
-                            '$currentMinutes', 
+                            '$dailyMinutes', 
                             '$dailyGoal Dakika', 
                             Colors.orange,
-                            dailyGoal > 0 ? (currentMinutes / dailyGoal).clamp(0.0, 1.0) : 0.0 
+                            dailyGoal > 0 ? (dailyMinutes / dailyGoal).clamp(0.0, 1.0) : 0.0 
                           )
                         ),
                       ],
                     ),
+
+                    Text('Genel İlerleme', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text('$totalSolved / 4764', style: GoogleFonts.inter(color: Colors.blueGrey.shade400, fontSize: 12, fontWeight: FontWeight.bold)),
+
                   ],
                 ),
               ),
