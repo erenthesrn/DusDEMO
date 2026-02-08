@@ -56,6 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // --- FIREBASE VERİ CANLI TAKİP (STREAM) ---
+// lib/screens/home_screen.dart içerisinde
+
   void _listenToUserData() {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -71,13 +73,13 @@ class _HomeScreenState extends State<HomeScreen> {
           String today = DateTime.now().toIso8601String().split('T')[0];
           String lastDate = data['lastActivityDate'] ?? "";
           
+          // 🔥 EKSİK OLAN STREAK MANTIĞI BURAYA EKLENDİ
           if (lastDate != today){
             await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-              'dailySolved':0,
-              'dailyMinutes':0,
+              'dailySolved': 0,
+              'dailyMinutes': 0,
               'lastActivityDate': today,
             });
-
           }
 
           if (mounted) {
@@ -92,15 +94,13 @@ class _HomeScreenState extends State<HomeScreen> {
               _totalSolved = (data['totalSolved'] ?? 0).toInt();
               _totalCorrect = (data['totalCorrect'] ?? 0).toInt();
               
-              // 🔥 Günlük verileri al (Yoksa 0 kabul et)
               _dailySolved = (data['dailySolved'] ?? 0).toInt();
               _dailyMinutes = (data['dailyMinutes'] ?? 0).toInt();
-
             });
           }
         }
-          },  onError: (e) {
-              debugPrint("Veri dinleme hatası: $e");
+      }, onError: (e) {
+        debugPrint("Veri dinleme hatası: $e");
       });
     }
   }

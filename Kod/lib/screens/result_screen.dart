@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../models/question_model.dart';
 import 'quiz_screen.dart';
 import '../services/achievement_service.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ResultScreen extends StatefulWidget {
   final List<Question> questions;
@@ -51,7 +53,60 @@ class _ResultScreenState extends State<ResultScreen> {
         100, 
         widget.correctCount 
       );
+      _updateStreakAndStats();
     });
+  }
+
+  // 🔥 YENİ FONKSİYON: Hem Streak'i hem Toplam Çözüleni günceller
+  Future<void> _updateStreakAndStats() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    
+    try {
+      // 1. Mevcut veriyi çek
+      DocumentSnapshot doc = await userDocRef.get();
+      if (!doc.exists) return;
+      
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      
+      String today = DateTime.now().toIso8601String().split('T')[0];
+      String lastStudyDate = data['lastStudyDate'] ?? ""; // lastActivity değil, StudyDate!
+      int currentStreak = data['streak'] ?? 0;
+      int newStreak = currentStreak;
+
+      // 2. Streak Hesaplama (Eğer bugün daha önce çözmediyse)
+      if (lastStudyDate != today) {
+        if (lastStudyDate.isNotEmpty) {
+           DateTime dateToday = DateTime.parse(today);
+           DateTime dateLast = DateTime.parse(lastStudyDate);
+           int diff = dateToday.difference(dateLast).inDays;
+
+           if (diff == 1) {
+             newStreak++; // Dün çözmüş, seriye devam
+           } else {
+             newStreak = 1; // Zincir kırılmış veya ilk kez, baştan başla
+           }
+        } else {
+          newStreak = 1; // Hiç tarihi yoksa 1 yap
+        }
+      }
+      
+      // 3. Verileri Güncelle (Atomik işlem)
+      await userDocRef.update({
+        'lastStudyDate': today,           // Bugün ders çalışıldı olarak işaretle
+        'streak': newStreak,              // Yeni seri
+        'totalSolved': FieldValue.increment(widget.questions.length), // Toplam soru artır
+        'totalCorrect': FieldValue.increment(widget.correctCount),    // Toplam doğru artır
+        'dailySolved': FieldValue.increment(widget.questions.length), // Günlük soru artır
+      });
+      
+      debugPrint("🔥 Firebase güncellendi: Streak $newStreak oldu.");
+
+    } catch (e) {
+      debugPrint("Hata oluştu: $e");
+    }
   }
 
   @override
