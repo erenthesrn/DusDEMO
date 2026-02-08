@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/mistakes_service.dart';
 import '../models/question_model.dart';
-import 'quiz_screen.dart'; 
+import 'quiz_screen.dart';
 
 // ==========================================
 // 1. EKRAN: YANLIŞLARIM KOKPİTİ (Dashboard)
@@ -60,6 +60,9 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    // Tema kontrolü (Dark Mode mu?)
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     // Hangi dersten kaç yanlış var hesapla
     Map<String, int> counts = {};
     for (var m in _allMistakes) {
@@ -84,18 +87,22 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFE0F2F1), // Hafif Teal tonu
+      // Dark mode ise koyu, değilse senin seçtiğin teal tonu
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFE0F2F1),
       appBar: AppBar(
-        title: const Text("Eksiklerimi Kapat",
-            style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: Text("Eksiklerimi Kapat",
+            style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _allMistakes.isEmpty
-              ? _buildEmptyState()
+              ? _buildEmptyState(isDark)
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -104,11 +111,14 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
                       _buildSummaryCard(_allMistakes.length),
 
                       const SizedBox(height: 24),
-                      const Align(
+                      Align(
                           alignment: Alignment.centerLeft,
                           child: Text("Derslere Göre Hatalar (Çoktan Aza)",
                               style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold))),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      isDark ? Colors.white : Colors.black87))),
                       const SizedBox(height: 12),
 
                       // GRID MENU
@@ -127,7 +137,7 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
                           String subject = sortedSubjects[index];
                           int count = counts[subject] ?? 0; // O dersin yanlış sayısı
                           return _buildSubjectCard(
-                              subject, count, _subjectColors[subject]!);
+                              subject, count, _subjectColors[subject]!, isDark);
                         },
                       ),
                       const SizedBox(height: 40),
@@ -137,7 +147,7 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -145,8 +155,11 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
           Icon(Icons.check_circle_outline,
               size: 80, color: Colors.teal.withOpacity(0.5)),
           const SizedBox(height: 16),
-          const Text("Harikasın! Hiç yanlışın yok.",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text("Harikasın! Hiç yanlışın yok.",
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87)),
           const Text("Test çözdükçe burası dolacak.",
               style: TextStyle(color: Colors.grey)),
         ],
@@ -197,7 +210,8 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
     );
   }
 
-  Widget _buildSubjectCard(String subject, int count, Color color) {
+  Widget _buildSubjectCard(
+      String subject, int count, Color color, bool isDark) {
     return GestureDetector(
       onTap: () {
         if (count > 0) {
@@ -223,13 +237,15 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: count > 0 ? color.withOpacity(0.5) : Colors.grey.shade200),
+              color: count > 0
+                  ? color.withOpacity(0.5)
+                  : (isDark ? Colors.grey.shade800 : Colors.grey.shade200)),
           boxShadow: [
             BoxShadow(
-                color: Colors.grey.shade100,
+                color: isDark ? Colors.black12 : Colors.grey.shade100,
                 blurRadius: 4,
                 offset: const Offset(0, 2))
           ],
@@ -237,13 +253,18 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.book, color: count > 0 ? color : Colors.grey.shade300),
+            Icon(Icons.book,
+                color: count > 0
+                    ? color
+                    : (isDark ? Colors.grey.shade700 : Colors.grey.shade300)),
             const SizedBox(height: 8),
             Text(subject,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: count > 0 ? Colors.black87 : Colors.grey)),
+                    color: count > 0
+                        ? (isDark ? Colors.white : Colors.black87)
+                        : Colors.grey)),
             Text("$count Soru",
                 style: TextStyle(
                     color: count > 0 ? color : Colors.grey, fontSize: 12)),
@@ -270,13 +291,13 @@ class MistakesListScreen extends StatefulWidget {
 
 class _MistakesListScreenState extends State<MistakesListScreen> {
   late List<Map<String, dynamic>> _currentList;
-  SortOption _currentSort = SortOption.newest; 
+  SortOption _currentSort = SortOption.newest;
 
   @override
   void initState() {
     super.initState();
     _currentList = List.from(widget.mistakes);
-    _sortList(); 
+    _sortList();
   }
 
   void _sortList() {
@@ -288,7 +309,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
                 DateTime.tryParse(a['date'] ?? "") ?? DateTime(2020);
             DateTime dateB =
                 DateTime.tryParse(b['date'] ?? "") ?? DateTime(2020);
-            return dateB.compareTo(dateA); 
+            return dateB.compareTo(dateA);
           });
           break;
         case SortOption.oldest:
@@ -297,7 +318,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
                 DateTime.tryParse(a['date'] ?? "") ?? DateTime(2020);
             DateTime dateB =
                 DateTime.tryParse(b['date'] ?? "") ?? DateTime(2020);
-            return dateA.compareTo(dateB); 
+            return dateA.compareTo(dateB);
           });
           break;
         case SortOption.subject:
@@ -305,14 +326,13 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
               (a['subject'] ?? "").compareTo(b['subject'] ?? ""));
           break;
         case SortOption.random:
-          _currentList.shuffle(); 
+          _currentList.shuffle();
           break;
       }
     });
   }
 
   // --- YENİ EKLENEN KISIM: QUIZ BAŞLATMA ---
-// --- YENİ EKLENEN KISIM: QUIZ BAŞLATMA ---
   void _startMistakeQuiz() async {
     // Verileri Question Modeline çeviriyoruz
     List<Question> questionList = _currentList.map<Question>((m) {
@@ -324,7 +344,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
         explanation: m['explanation'] ?? "",
         testNo: 0,
         // 🔥 DÜZELTME BURADA: "Karışık" yerine m['subject'] kullanıyoruz.
-        level: m['subject'] ?? "Genel", 
+        level: m['subject'] ?? "Genel",
       );
     }).toList();
 
@@ -342,9 +362,9 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
         ),
       ),
     );
-    
+
     // Quiz bitip geri dönüldüğünde listeyi yenile
-    _refreshList(); 
+    _refreshList();
   }
 
   // --- LİSTEYİ YENİLEME ---
@@ -355,9 +375,10 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
         if (widget.title == "Tüm Yanlışlarım") {
           _currentList = allData;
         } else {
-          _currentList = allData.where((m) => m['subject'] == widget.title).toList();
+          _currentList =
+              allData.where((m) => m['subject'] == widget.title).toList();
         }
-        _sortList(); 
+        _sortList();
       });
     }
   }
@@ -435,72 +456,87 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Dark mode kontrolü
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      
+      backgroundColor:
+          isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5),
+
       // --- EKLENEN BUTON ---
       floatingActionButton: _currentList.isNotEmpty
-        ? FloatingActionButton.extended(
-            onPressed: _startMistakeQuiz,
-            backgroundColor: Colors.teal,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text("Bu Yanlışları Çöz"),
-          )
-        : null,
+          ? FloatingActionButton.extended(
+              onPressed: _startMistakeQuiz,
+              backgroundColor: Colors.teal,
+              icon: const Icon(Icons.play_arrow),
+              label: const Text("Bu Yanlışları Çöz"),
+            )
+          : null,
 
       appBar: AppBar(
-        title: Text(widget.title, style: const TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
+        title: Text(widget.title,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
         actions: [
           PopupMenuButton<SortOption>(
             tooltip: "Sırala",
+            color: isDark ? const Color(0xFF2C2C2C) : null,
             onSelected: (SortOption result) {
               _currentSort = result;
               _sortList();
             },
             itemBuilder: (BuildContext context) =>
                 <PopupMenuEntry<SortOption>>[
-              const PopupMenuItem<SortOption>(
+              PopupMenuItem<SortOption>(
                 value: SortOption.newest,
                 child: Row(
                   children: [
-                    Icon(Icons.access_time_filled,
+                    const Icon(Icons.access_time_filled,
                         color: Colors.orange, size: 20),
-                    SizedBox(width: 10),
-                    Text("Yeniden Eskiye"),
+                    const SizedBox(width: 10),
+                    Text("Yeniden Eskiye",
+                        style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black)),
                   ],
                 ),
               ),
-              const PopupMenuItem<SortOption>(
+              PopupMenuItem<SortOption>(
                 value: SortOption.oldest,
                 child: Row(
                   children: [
-                    Icon(Icons.history, color: Colors.brown, size: 20),
-                    SizedBox(width: 10),
-                    Text("Eskiden Yeniye"),
+                    const Icon(Icons.history, color: Colors.brown, size: 20),
+                    const SizedBox(width: 10),
+                    Text("Eskiden Yeniye",
+                        style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black)),
                   ],
                 ),
               ),
-              const PopupMenuItem<SortOption>(
+              PopupMenuItem<SortOption>(
                 value: SortOption.subject,
                 child: Row(
                   children: [
-                    Icon(Icons.sort_by_alpha, color: Colors.blue, size: 20),
-                    SizedBox(width: 10),
-                    Text("Derslere Göre (A-Z)"),
+                    const Icon(Icons.sort_by_alpha,
+                        color: Colors.blue, size: 20),
+                    const SizedBox(width: 10),
+                    Text("Derslere Göre (A-Z)",
+                        style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black)),
                   ],
                 ),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem<SortOption>(
+              PopupMenuItem<SortOption>(
                 value: SortOption.random,
                 child: Row(
                   children: [
-                    Icon(Icons.shuffle, color: Colors.purple, size: 20),
-                    SizedBox(width: 10),
-                    Text("Karışık Sırala"),
+                    const Icon(Icons.shuffle, color: Colors.purple, size: 20),
+                    const SizedBox(width: 10),
+                    Text("Karışık Sırala",
+                        style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black)),
                   ],
                 ),
               ),
@@ -509,9 +545,10 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
               margin: const EdgeInsets.only(right: 10),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.teal.shade50,
+                color: isDark ? Colors.teal.withOpacity(0.2) : Colors.teal.shade50,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.teal.shade200),
+                border: Border.all(
+                    color: isDark ? Colors.teal.shade700 : Colors.teal.shade200),
               ),
               child: const Row(
                 children: [
@@ -527,24 +564,28 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
         ],
       ),
       body: _currentList.isEmpty
-          ? const Center(child: Text("Listede soru kalmadı! 🎉"))
+          ? Center(
+              child: Text("Listede soru kalmadı! 🎉",
+                  style:
+                      TextStyle(color: isDark ? Colors.white : Colors.black)))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _currentList.length,
               itemBuilder: (context, index) {
                 final mistake = _currentList[index];
-                return _buildMistakeCard(mistake);
+                return _buildMistakeCard(mistake, isDark);
               },
             ),
     );
   }
 
-  Widget _buildMistakeCard(Map<String, dynamic> mistake) {
+  Widget _buildMistakeCard(Map<String, dynamic> mistake, bool isDark) {
     List<dynamic> options = mistake['options'];
     int correctIndex = mistake['correctIndex'];
     int? wrongIndex = mistake['userIndex'];
 
     return Card(
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -601,8 +642,10 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
             ),
             const SizedBox(height: 8),
             Text(mistake['question'],
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87)),
             const SizedBox(height: 12),
             ...List.generate(options.length, (i) {
               Color color = Colors.transparent;
@@ -623,10 +666,19 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
                 child: Row(
                   children: [
                     Text(String.fromCharCode(65 + i) + ") ",
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Expanded(child: Text(options[i])),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white70 : Colors.black87)),
+                    Expanded(
+                        child: Text(options[i],
+                            style: TextStyle(
+                                color: isDark
+                                    ? Colors.white70
+                                    : Colors.black87))),
                     if (icon != null)
-                      Icon(icon, size: 16, color: Colors.black54)
+                      Icon(icon,
+                          size: 16,
+                          color: isDark ? Colors.white60 : Colors.black54)
                   ],
                 ),
               );
@@ -636,7 +688,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
               const Divider(),
               Text("Açıklama: ${mistake['explanation']}",
                   style: TextStyle(
-                      color: Colors.grey.shade700,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                       fontStyle: FontStyle.italic)),
             ]
           ],
