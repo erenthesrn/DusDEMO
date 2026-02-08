@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- VERİ DEĞİŞKENLERİ ---
   String _targetBranch = "Hedef Seçiliyor...";
   int _dailyGoal = 60;
+  int _dailyQuestionGoal = 100;
 
   int _dailyMinutes = 0;
   int _dailySolved = 0;
@@ -83,6 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
             setState(() {
               if (data.containsKey('targetBranch')) _targetBranch = data['targetBranch'];
               if (data.containsKey('dailyGoalMinutes')) _dailyGoal = (data['dailyGoalMinutes'] as num).toInt();
+              if (data.containsKey('dailyGoalQuestions')) {
+                _dailyQuestionGoal = (data['dailyGoalQuestions'] as num).toInt();
+              }
               if (data.containsKey('showSuccessRate')) _showSuccessRate = data['showSuccessRate'];
 
               _totalSolved = (data['totalSolved'] ?? 0).toInt();
@@ -432,6 +436,7 @@ class _HomeScreenState extends State<HomeScreen> {
       DashboardScreen(
         targetBranch: _targetBranch,
         dailyGoal: _dailyGoal,
+        dailyQuestionGoal: _dailyQuestionGoal, // 🔥 YENİ: Buraya ekle
 
         dailyMinutes: _dailyMinutes,
         dailySolved: _dailySolved,
@@ -522,12 +527,17 @@ class _HomeScreenState extends State<HomeScreen> {
 // ||                          DASHBOARD EKRANI                               ||
 // =============================================================================
 
+// lib/screens/home_screen.dart içindeki DashboardScreen sınıfı
+
 class DashboardScreen extends StatelessWidget {
   final String targetBranch;
-  final int dailyGoal;
+  final int dailyGoal;         // Süre Hedefi
+  final int dailyQuestionGoal; // Soru Hedefi
+  
   final int dailyMinutes;
   final int dailySolved;
   final int totalSolved;
+  
   final int totalCorrect;
   final bool showSuccessRate;
 
@@ -539,9 +549,10 @@ class DashboardScreen extends StatelessWidget {
     super.key,
     required this.targetBranch,
     required this.dailyGoal,
-    required this.dailyMinutes,
-    required this.dailySolved,
-    required this.totalSolved,
+    required this.dailyQuestionGoal, 
+    required this.dailyMinutes,   
+    required this.dailySolved,    
+    required this.totalSolved,    
     required this.totalCorrect,
     required this.showSuccessRate,
     required this.onRefresh,
@@ -558,12 +569,12 @@ class DashboardScreen extends StatelessWidget {
   }
 
   String _calculateSuccessRate() {
-  if (!showSuccessRate) return '---'; // Eğer ayar kapalıysa 'Gizli' döndür
+    if (!showSuccessRate) return '---'; 
 
-  if (totalSolved == 0) return '%0';
-  double rate = (totalCorrect.toDouble() / totalSolved.toDouble()) * 100;
-  return '%${rate.toStringAsFixed(0)}';
-}
+    if (totalSolved == 0) return '%0';
+    double rate = (totalCorrect.toDouble() / totalSolved.toDouble()) * 100;
+    return '%${rate.toStringAsFixed(0)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -616,7 +627,8 @@ class DashboardScreen extends StatelessWidget {
                     const SizedBox(height: 32),
                     Row(
                       children: [
-                        _buildMiniStat(Icons.check_circle_outline, '$totalSolved', 'Çözülen Soru', Colors.orange.shade400),
+                        // Header'da genel toplam kalabilir, motive eder
+                        _buildMiniStat(Icons.check_circle_outline, '$totalSolved', 'Toplam Soru', Colors.orange.shade400),
                         const SizedBox(width: 16),
                         _buildMiniStat(Icons.track_changes, _calculateSuccessRate(), 'Başarı Oranı', Colors.green.shade400),
                       ],
@@ -640,32 +652,29 @@ class DashboardScreen extends StatelessWidget {
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 5))],
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("Bugünkü Hedefler", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
-                        TextButton(
-                          onPressed: onRefresh, 
-                          child: const Text("Yenile", style: TextStyle(color: Colors.orange)),
-                        )
-                      ],
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 24.0),
+                      child: Text("Bugünkü Hedefler", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
                     ),
-                    const SizedBox(height: 24),
+                    
                     Row(
                       children: [
                         Expanded(
                           child: _buildGoalCircle(
-                            '$dailySolved', 
-                            '100 Soru', 
+                            '$dailySolved',     
+                            '$dailyQuestionGoal Soru', // Dinamik Soru Hedefi
                             Colors.teal,
-                            (totalSolved / 100).clamp(0.0, 1.0) 
+                            dailyQuestionGoal > 0 
+                                ? (dailySolved / dailyQuestionGoal).clamp(0.0, 1.0) 
+                                : 0.0 
                           )
                         ),
                         Container(width: 1, height: 60, color: Colors.blueGrey.shade100),
                         Expanded(
                           child: _buildGoalCircle(
-                            '$dailyMinutes', 
+                            '$dailyMinutes',    
                             '$dailyGoal Dakika', 
                             Colors.orange,
                             dailyGoal > 0 ? (dailyMinutes / dailyGoal).clamp(0.0, 1.0) : 0.0 
@@ -673,22 +682,17 @@ class DashboardScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-
-                    Text('Genel İlerleme', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
-                    Text('$totalSolved / 4764', style: GoogleFonts.inter(color: Colors.blueGrey.shade400, fontSize: 12, fontWeight: FontWeight.bold)),
-
                   ],
                 ),
               ),
             ),
           ),
 
-          // --- 🔥 GÜNCELLENEN BUTON YAPISI 🔥 ---
+          // --- BUTON YAPISI ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                // 1. Satır: Pratik ve Yanlışlar Yan Yana (Dikey Dikdörtgenler)
                 Row(
                   children: [
                     Expanded(
@@ -705,9 +709,9 @@ class DashboardScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                     child: _buildActionBtnVertical(
-                        'Bilgi\nKartları', // Alt satıra geçsin diye \n ekledik
+                        'Bilgi\nKartları',
                         'Tekrar Et', 
-                        Icons.style, // Kart destesi ikonu
+                        Icons.style,
                        Colors.green.shade400,
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -735,7 +739,6 @@ class DashboardScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                // 2. Satır: Odak Modu Altta (Yatay Geniş Şerit)
                 _buildActionBtnHorizontal(
                   'Odak Modu (Timer)', 
                   'Pomodoro ile verimli çalış', 
@@ -749,30 +752,8 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           
-          const SizedBox(height: 32),
-          // --- ALT İSTATİSTİK BAR ---
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Genel İlerleme', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
-                    Text('$totalSolved / 4764', style: GoogleFonts.inter(color: Colors.blueGrey.shade400, fontSize: 12, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: totalSolved / 4764, 
-                  backgroundColor: Colors.blueGrey.shade100, 
-                  color: const Color(0xFF0D9488), 
-                  borderRadius: BorderRadius.circular(10), 
-                  minHeight: 10
-                ),
-              ],
-            ),
-          ),
+          // 🔥 GENEL İLERLEME KISMI KALDIRILDI
+          // Sadece boşluk bırakıyoruz ki scroll yapınca en alt rahat görünsün
           const SizedBox(height: 100),
         ],
       ),
@@ -781,7 +762,6 @@ class DashboardScreen extends StatelessWidget {
 
   // --- YARDIMCI WIDGET'LAR ---
   
-  // Dikey Kart (Pratik ve Yanlışlar için)
   Widget _buildActionBtnVertical(String title, String sub, IconData icon, Color color, {required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
@@ -806,7 +786,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // Yatay Kart (Odak Modu için)
   Widget _buildActionBtnHorizontal(String title, String sub, IconData icon, Color color, {required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,

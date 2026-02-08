@@ -1,4 +1,5 @@
 // lib/screens/onboarding_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,8 +15,11 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   // Seçilen verileri tutacak değişkenler
   String? _selectedStatus; // Öğrenci / Mezun
-  int? _selectedDailyGoal; // Dakika cinsinden (30, 60, 120...)
+  int? _selectedDailyGoal; // Süre hedefi (Dakika)
   String? _selectedBranch; // Hedef Uzmanlık
+
+  // 🔥 YENİ: Soru hedefi için kontrolcü
+  final TextEditingController _questionGoalController = TextEditingController();
 
   bool _isLoading = false;
   String _userName = "Doktor"; // Kullanıcının ismi (Hitap için)
@@ -24,6 +28,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
   void initState() {
     super.initState();
     _fetchUserName();
+  }
+
+  @override
+  void dispose() {
+    _questionGoalController.dispose(); // Bellek sızıntısını önle
+    super.dispose();
   }
 
   // Kullanıcının ismini çekip "Hoş geldin Ahmet" demek için
@@ -38,9 +48,19 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   // Verileri Kaydet ve Devam Et
   Future<void> _saveAndContinue() async {
-    if (_selectedStatus == null || _selectedDailyGoal == null || _selectedBranch == null) {
+    // 🔥 Validasyonları Güncelledik (Soru hedefi kontrolü eklendi)
+    if (_selectedStatus == null || _selectedDailyGoal == null || _selectedBranch == null || _questionGoalController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Lütfen tüm alanları seçerek bizi bilgilendir. 😇"), backgroundColor: Colors.orange),
+        const SnackBar(content: Text("Lütfen tüm alanları doldurarak hedefini belirle. 😇"), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    // Soru hedefinin sayı olup olmadığını kontrol et
+    int? questionGoal = int.tryParse(_questionGoalController.text);
+    if (questionGoal == null || questionGoal <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Lütfen geçerli bir soru sayısı giriniz."), backgroundColor: Colors.red),
       );
       return;
     }
@@ -53,7 +73,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
         // Firestore'daki kullanıcı belgesini güncelle
         await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
           'status': _selectedStatus,
-          'dailyGoalMinutes': _selectedDailyGoal,
+          'dailyGoalMinutes': _selectedDailyGoal,   // Süre Hedefi
+          'dailyGoalQuestions': questionGoal,       // 🔥 YENİ: Soru Hedefi
           'targetBranch': _selectedBranch,
           'isOnboardingComplete': true, // Artık bu ekranı görmesin
         });
@@ -106,32 +127,66 @@ class _OnboardingPageState extends State<OnboardingPage> {
               Wrap(
                 spacing: 10, runSpacing: 10,
                 children: [
-                  _buildSelectableChip("Dönem 3 Öğrencisi", "status"),
-                  _buildSelectableChip("Dönem 4 Öğrencisi", "status"),
-                  _buildSelectableChip("Dönem 5 Öğrencisi", "status"),
-                  _buildSelectableChip("Mezun / Diş Hekimi", "status"),
+                  _buildSelectableChip("Dönem 3 Öğrencisi"),
+                  _buildSelectableChip("Dönem 4 Öğrencisi"),
+                  _buildSelectableChip("Dönem 5 Öğrencisi"),
+                  _buildSelectableChip("Mezun / Diş Hekimi"),
                 ],
               ),
               
               const SizedBox(height: 32),
 
-              // --- 2. SORU: GÜNLÜK HEDEF ---
-              _buildSectionTitle("Günlük çalışma hedefin ne kadar?"),
+              // --- 2. SORU: GÜNLÜK SÜRE HEDEFİ ---
+              _buildSectionTitle("Günlük çalışma SÜRESİ hedefin?"),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 10, runSpacing: 10,
-                children: [
-                  _buildTimeChip(10, "Isınma Turu"),
-                  _buildTimeChip(20, "İdeal Başlangıç"),                  
-                  _buildTimeChip(30, "İstekli"),
-                  _buildTimeChip(60, "Ciddi Çalışma"),
-                  _buildTimeChip(120, "UZMAN!"),
-                ],
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildTimeChip(30, "Isınma"),
+                    const SizedBox(width: 10),
+                    _buildTimeChip(60, "İdeal"),
+                    const SizedBox(width: 10),
+                    _buildTimeChip(120, "Ciddi"),
+                    const SizedBox(width: 10),
+                    _buildTimeChip(180, "Hardcore"),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 32),
 
-              // --- 3. SORU: HEDEF UZMANLIK ---
+              // --- 3. SORU: GÜNLÜK SORU HEDEFİ (🔥 YENİ EKLENEN KISIM) ---
+              _buildSectionTitle("Günde kaç SORU çözmeyi hedefliyorsun?"),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade300),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                child: TextField(
+                  controller: _questionGoalController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: "Örn: 100",
+                    hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
+                    suffixText: "Soru",
+                    suffixStyle: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54),
+                    icon: Icon(Icons.edit_note, color: Color(0xFF1565C0)),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // --- 4. SORU: HEDEF UZMANLIK ---
               _buildSectionTitle("Hangi uzmanlığı kazanmak istiyorsun?"),
               const SizedBox(height: 12),
               Container(
@@ -201,7 +256,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   // Durum Seçimi İçin Chip (Öğrenci/Mezun)
-  Widget _buildSelectableChip(String label, String type) {
+  Widget _buildSelectableChip(String label) {
     bool isSelected = _selectedStatus == label;
     return ChoiceChip(
       label: Text(label),
