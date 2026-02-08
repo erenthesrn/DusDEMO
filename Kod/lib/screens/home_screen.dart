@@ -26,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  bool _showSuccessRate = true; 
   
   // --- VERİ DEĞİŞKENLERİ ---
   String _targetBranch = "Hedef Seçiliyor...";
@@ -70,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
               if (data.containsKey('dailyGoalMinutes')) _dailyGoal = (data['dailyGoalMinutes'] as num).toInt();
               if (data.containsKey('totalMinutes')) _currentMinutes = (data['totalMinutes'] as num).toInt();
               if (data.containsKey('totalSolved')) _totalSolved = (data['totalSolved'] as num).toInt();
+              if (data.containsKey('showSuccessRate')) _showSuccessRate = data['showSuccessRate'];
               if (data.containsKey('totalCorrect')) {
                 _totalCorrect = (data['totalCorrect'] as num).toInt();
               } else {
@@ -418,6 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
         currentMinutes: _currentMinutes,
         totalSolved: _totalSolved,
         totalCorrect: _totalCorrect,
+        showSuccessRate: _showSuccessRate,
         onRefresh: () {}, 
         onMistakesTap: () => _showMistakesMenu(context),
         onPratikTap: () => _showTopicSelection(context), 
@@ -507,6 +510,8 @@ class DashboardScreen extends StatelessWidget {
   final int currentMinutes;
   final int totalSolved;
   final int totalCorrect;
+  final bool showSuccessRate;
+
   final VoidCallback onRefresh;
   final VoidCallback? onMistakesTap; 
   final VoidCallback? onPratikTap;
@@ -518,6 +523,7 @@ class DashboardScreen extends StatelessWidget {
     required this.currentMinutes,
     required this.totalSolved,
     required this.totalCorrect,
+    required this.showSuccessRate,
     required this.onRefresh,
     this.onMistakesTap,
     this.onPratikTap,
@@ -532,10 +538,12 @@ class DashboardScreen extends StatelessWidget {
   }
 
   String _calculateSuccessRate() {
-    if (totalSolved == 0) return '%0';
-    double rate = (totalCorrect.toDouble() / totalSolved.toDouble()) * 100;
-    return '%${rate.toStringAsFixed(0)}';
-  }
+  if (!showSuccessRate) return '---'; // Eğer ayar kapalıysa 'Gizli' döndür
+
+  if (totalSolved == 0) return '%0';
+  double rate = (totalCorrect.toDouble() / totalSolved.toDouble()) * 100;
+  return '%${rate.toStringAsFixed(0)}';
+}
 
   @override
   Widget build(BuildContext context) {

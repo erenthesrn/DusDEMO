@@ -357,6 +357,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
+  
+ // --- 8. İSTATİSTİK AYARLARI MENÜSÜ ---
+  void _showStatisticsOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        // Anlık durumu görmek için StreamBuilder kullanıyoruz
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+            
+            var data = snapshot.data!.data() as Map<String, dynamic>?;
+            bool isVisible = data?['showSuccessRate'] ?? true; 
+
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("İstatistik Ayarları 📊", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+
+                  // 1. Switch: Görünürlük
+                  Container(
+                    decoration: BoxDecoration(color: Colors.grey.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                    child: SwitchListTile(
+                      title: const Text("Başarı Oranını Göster", style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(isVisible ? "Ana ekranda açık" : "Ana ekranda gizli", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      value: isVisible,
+                      activeColor: Colors.green,
+                      secondary: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.visibility, color: Colors.green),
+                      ),
+                      onChanged: (val) => _toggleSuccessRateVisibility(isVisible),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // 2. Buton: Sıfırlama
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      child: const Icon(Icons.cleaning_services_rounded, color: Colors.red),
+                    ),
+                    title: const Text("İstatistikleri Sıfırla", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+                    subtitle: const Text("Tüm soru geçmişini temizler"),
+                    onTap: () {
+                      Navigator.pop(context); // Menüyü kapat
+                      _resetStatistics(context); // Sıfırlama dialogunu aç
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+// Yardımcı Fonksiyon: Görünürlük Değiştir
+  void _toggleSuccessRateVisibility(bool currentValue) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'showSuccessRate': !currentValue,
+      });
+    }
+  }
+
+  // Yardımcı Fonksiyon: İstatistik Sıfırla
+  void _resetStatistics(BuildContext context) async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Emin misin?"),
+        content: const Text("Tüm çözülen soru sayıları ve başarı oranların sıfırlanacak. Bu işlem geri alınamaz."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("İptal")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text("Sıfırla", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'totalSolved': 0,
+          'totalCorrect': 0,
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("İstatistikler sıfırlandı! Tertemiz bir sayfa. 🚀"))
+        );
+      }
+    }
+  }  
+
 
   @override
   Widget build(BuildContext context) {
@@ -446,6 +554,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         _buildDivider(),
 
+                        // 🔥 YENİ EKLENEN BUTON BURADA 🔥
+                        _buildMenuItem(
+                          Icons.analytics_outlined, // Grafik ikonu
+                          "İstatistik Ayarları",
+                          "Başarı oranı ve sıfırlama",
+                          _showStatisticsOptions // Tıklayınca yukarıdaki fonksiyonu açacak
+                        ),
+                        _buildDivider(),
+                        // ---------------------------------
+
                         _buildMenuItem(
                           Icons.ads_click,
                           "Hedeflerim",
@@ -454,6 +572,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         _buildDivider(),
                         _buildMenuItem(Icons.notifications_outlined, "Bildirimler", "Sınav hatırlatmaları", () {}),
+
+                        _buildDivider(),
+
                       ],
                     ),
                   ),
@@ -648,3 +769,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Divider(height: 1, thickness: 1, color: Theme.of(context).dividerColor.withOpacity(0.1), indent: 70);
   }
 }
+
