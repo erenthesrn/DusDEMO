@@ -1,5 +1,6 @@
 // lib/screens/profile_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,58 +24,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _streak = 0;
   bool _isLoading = true;
 
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
+
   @override
   void initState() {
     super.initState();
-    _getUserData(); // Sayfa açılınca verileri çek
+    _listenUserData(); // Sayfa açılınca verileri çek
   }
 
   // 2. Firebase'den Veri Çekme Fonksiyonu
-  Future<void> _getUserData() async {
+void _listenUserData() {
     User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser != null) {
-      try {
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .get();
-
-        if (userDoc.exists) {
-          // Veri varsa çek
-          setState(() {
-            Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-            _name = data['name'] ?? "İsimsiz";
-            _email = data['email'] ?? currentUser.email!;
-            _role = data['role'] ?? "free";            
-            _streak = data['streak'] ?? 0;
-            _isLoading = false;
-          });
+      _userSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .snapshots() // 🔥 ÖNEMLİ: get() yerine snapshots() kullanıldı
+          .listen((snapshot) {
+        
+        if (snapshot.exists && snapshot.data() != null) {
+          // Veri her değiştiğinde burası çalışır ve ekranı günceller
+          if (mounted) {
+            setState(() {
+              Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+              _name = data['name'] ?? "İsimsiz";
+              _email = data['email'] ?? currentUser.email!;
+              _role = data['role'] ?? "free";            
+              _streak = data['streak'] ?? 0; // 🔥 Streak değişince otomatik güncellenecek
+              _isLoading = false;
+            });
+          }
         } else {
-          // Veri yoksa varsayılanı göster
-          setState(() {
-            _name = currentUser.displayName ?? "Kullanıcı";
-            _email = currentUser.email ?? "";
-            _role = "free";
-            _isLoading = false;
-          });
-          
-          // Veritabanını onar
-          FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
-            'name': _name,
-            'email': _email,
-            'role': 'free',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+          // Kullanıcı dökümanı yoksa oluştur (Eski mantığını koruyoruz)
+           if (mounted) {
+             setState(() {
+               _name = currentUser.displayName ?? "Kullanıcı";
+               _email = currentUser.email ?? "";
+               _role = "free";
+               _isLoading = false;
+             });
+             
+             FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
+               'name': _name,
+               'email': _email,
+               'role': 'free',
+               'createdAt': FieldValue.serverTimestamp(),
+               'streak': 0, 
+             });
+           }
         }
-      } catch (e) {
+      }, onError: (e) {
+        debugPrint("Veri dinleme hatası: $e");
         if (mounted) {
           setState(() {
             _name = "Hata";
             _isLoading = false;
           });
         }
-      }
+      });
     } else {
       if (mounted) {
         setState(() {
@@ -421,7 +429,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text("Hedef başarıyla güncellendi!"))
                             );
-                            _getUserData(); // Ekrandaki veriyi tazele
+                            _listenUserData(); // Ekrandaki veriyi tazele
                           }
                         }
                       },
@@ -542,6 +550,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }  
+
+  @override
+  void dispose() {
+    _userSubscription?.cancel();
+    super.dispose();
+  }
 
 
   @override
