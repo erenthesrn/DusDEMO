@@ -1,6 +1,7 @@
 // lib/screens/test_list_screen.dart
 
-import 'dart:convert'; // JSON okumak için lazım
+import 'dart:convert';
+import 'dart:ui'; // Blur efekti için
 import 'package:flutter/material.dart';
 import '../models/question_model.dart';
 import 'quiz_screen.dart';
@@ -21,13 +22,27 @@ class TestListScreen extends StatefulWidget {
   State<TestListScreen> createState() => _TestListScreenState();
 }
 
-class _TestListScreenState extends State<TestListScreen> {
+class _TestListScreenState extends State<TestListScreen> with SingleTickerProviderStateMixin {
   Set<int> _completedTestNumbers = {}; 
+  late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _loadTestStatus(); 
+    _loadTestStatus();
+    
+    // Animasyon kontrolcüsü
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000), 
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTestStatus() async {
@@ -52,74 +67,132 @@ class _TestListScreenState extends State<TestListScreen> {
     // 1. Tema Kontrolü
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    // 2. Renk Tanımları
-    // Arkaplan: Koyu modda Siyah, Açık modda Mavi tonu
-    final Color scaffoldBackgroundColor = isDarkMode ? Colors.black : const Color(0xFFE3F2FD);
-    
-    // AppBar Yazı Rengi: Koyu modda Beyaz, Açık modda Siyah
-    final Color appBarTextColor = isDarkMode ? Colors.white : Colors.black87;
+    // 2. Renk Tanımları (Premium Palette)
+    Color scaffoldBackgroundColor = isDarkMode ? const Color(0xFF0A0E14) : const Color(0xFFF5F9FF);
+    Color appBarTitleColor = isDarkMode ? const Color(0xFFE6EDF3) : Colors.black87;
 
     return Scaffold(
+      extendBodyBehindAppBar: true, 
       backgroundColor: scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text("$cleanTitle Testleri"),
+        title: Text(
+          "$cleanTitle Testleri",
+          style: TextStyle(
+            fontWeight: FontWeight.w800, 
+            color: appBarTitleColor,
+            letterSpacing: 0.5
+          ),
+        ),
+        centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: isDarkMode ? Colors.white : Colors.black87),
-        titleTextStyle: TextStyle(
-          color: appBarTextColor, 
-          fontSize: 20, 
-          fontWeight: FontWeight.bold
+        iconTheme: IconThemeData(color: appBarTitleColor),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: scaffoldBackgroundColor.withOpacity(0.7)),
+          ),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: Stack(
         children: [
-          _buildSectionHeader("Kolay Seviye", Colors.green, isDarkMode),
-          _buildTestGrid(count: 8, startNumber: 1, color: Colors.green, isDarkMode: isDarkMode),
+          // --- ARKA PLAN EFEKTLERİ ---
+          if (isDarkMode)
+            Positioned(
+              top: -100, right: -100,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+                child: Container(
+                  width: 300, height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: widget.themeColor.withOpacity(0.15),
+                  ),
+                ),
+              ),
+            ),
           
-          _buildDivider(isDarkMode),
-          
-          _buildSectionHeader("Orta Seviye", Colors.orange, isDarkMode),
-          _buildTestGrid(count: 8, startNumber: 9, color: Colors.orange, isDarkMode: isDarkMode),
-          
-          _buildDivider(isDarkMode),
-          
-          _buildSectionHeader("Zor Seviye", Colors.red, isDarkMode),
-          _buildTestGrid(count: 8, startNumber: 17, color: Colors.red, isDarkMode: isDarkMode),
-          
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
+          if (isDarkMode)
+            Positioned(
+              bottom: -50, left: -50,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                child: Container(
+                  width: 200, height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.blueAccent.withOpacity(0.1),
+                  ),
+                ),
+              ),
+            ),
 
-  Widget _buildDivider(bool isDarkMode) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24.0),
-      child: Divider(
-        color: isDarkMode ? Colors.white24 : Colors.grey.withOpacity(0.3), 
-        thickness: 1
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, Color color, bool isDarkMode) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Row(
-        children: [
-          Icon(Icons.bar_chart_rounded, color: color),
-          const SizedBox(width: 8),
-          Text(
-            title, 
-            style: TextStyle(
-              fontSize: 18, 
-              fontWeight: FontWeight.bold, 
-              color: color // Başlık rengi seviye rengiyle aynı kalsın (okunabilir)
-            )
+          // --- LİSTE İÇERİĞİ ---
+          ListView(
+            padding: const EdgeInsets.fromLTRB(20, 110, 20, 30), 
+            physics: const BouncingScrollPhysics(),
+            children: [
+              _buildSectionHeader("Kolay Seviye", Colors.green, isDarkMode, 0),
+              _buildTestGrid(count: 8, startNumber: 1, color: Colors.green, isDarkMode: isDarkMode, delayIndex: 1),
+              
+              _buildDivider(isDarkMode, 2),
+              
+              _buildSectionHeader("Orta Seviye", Colors.orange, isDarkMode, 3),
+              _buildTestGrid(count: 8, startNumber: 9, color: Colors.orange, isDarkMode: isDarkMode, delayIndex: 4),
+              
+              _buildDivider(isDarkMode, 5),
+              
+              _buildSectionHeader("Zor Seviye", Colors.red, isDarkMode, 6),
+              _buildTestGrid(count: 8, startNumber: 17, color: Colors.red, isDarkMode: isDarkMode, delayIndex: 7),
+              
+              const SizedBox(height: 30),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDivider(bool isDarkMode, int index) {
+    return _animatedWidget(
+      index: index,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
+        child: Divider(
+          color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05), 
+          thickness: 1
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, Color color, bool isDarkMode, int index) {
+    return _animatedWidget(
+      index: index,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.bar_chart_rounded, color: color, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              title, 
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold, 
+                color: isDarkMode ? Colors.white.withOpacity(0.9) : Colors.black87,
+                letterSpacing: 0.3
+              )
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -128,98 +201,138 @@ class _TestListScreenState extends State<TestListScreen> {
     required int count, 
     required int startNumber, 
     required Color color, 
-    required bool isDarkMode
+    required bool isDarkMode,
+    required int delayIndex,
   }) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4, 
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.0, 
-      ),
-      itemCount: count,
-      itemBuilder: (context, index) {
-        int testNumber = startNumber + index;
-        bool isCompleted = _completedTestNumbers.contains(testNumber);
+    return _animatedWidget(
+      index: delayIndex,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4, 
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.0,
+        ),
+        itemCount: count,
+        itemBuilder: (context, index) {
+          int testNumber = startNumber + index;
+          bool isCompleted = _completedTestNumbers.contains(testNumber);
 
-        // -- KUTU RENKLERİ --
-        Color boxColor;
-        Color borderColor;
-        
-        if (isCompleted) {
-          // Tamamlanmışsa: Koyu modda koyu yeşil, açık modda açık yeşil
-          boxColor = isDarkMode ? Colors.green.shade900.withOpacity(0.3) : Colors.green.shade50;
-          borderColor = Colors.green;
-        } else {
-          // Tamamlanmamışsa: Koyu modda Koyu Gri (Surface), Açık modda Beyaz
-          boxColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
-          borderColor = isDarkMode ? Colors.white12 : color.withOpacity(0.3);
-        }
+          // -- KUTU RENKLERİ --
+          Color boxColor;
+          Color borderColor;
+          List<BoxShadow> shadows;
 
-        // -- YAZI RENKLERİ --
-        Color numberColor = isCompleted ? Colors.green : color;
-        
-        Color labelColor; 
-        if (isCompleted) {
-          labelColor = isDarkMode ? Colors.greenAccent : Colors.green.shade700;
-        } else {
-          labelColor = isDarkMode ? Colors.grey.shade400 : Colors.grey[600]!;
-        }
+          if (isCompleted) {
+            boxColor = isDarkMode ? const Color(0xFF161B22) : Colors.white;
+            borderColor = Colors.green.withOpacity(0.5);
+            shadows = [
+              BoxShadow(
+                color: Colors.green.withOpacity(isDarkMode ? 0.15 : 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              )
+            ];
+          } else {
+            boxColor = isDarkMode ? const Color(0xFF161B22) : Colors.white;
+            borderColor = isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.15);
+            shadows = [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              )
+            ];
+          }
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () {
-              if (isCompleted) {
-                _showChoiceDialog(testNumber); 
-              } else {
-                _startQuiz(testNumber); 
-              }
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              decoration: BoxDecoration(
-                color: boxColor, // Dinamik Kutu Rengi
-                border: Border.all(
-                  color: borderColor, // Dinamik Kenarlık
-                  width: 2
+          // -- RAKAM RENGİ AYARI (İsteğin üzerine güncellendi) --
+          // Tamamlanmışsa yeşil tik, değilse zorluk rengi (color)
+          Color numberColor = color; 
+          
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              splashColor: color.withOpacity(0.2),
+              onTap: () {
+                if (isCompleted) {
+                  _showChoiceDialog(testNumber); 
+                } else {
+                  _startQuiz(testNumber); 
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                decoration: BoxDecoration(
+                  color: boxColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: borderColor, width: isCompleted ? 1.5 : 1),
+                  boxShadow: shadows,
                 ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.05), 
-                    blurRadius: 4, 
-                    offset: const Offset(0, 2)
-                  )
-                ]
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (isCompleted)
-                    const Icon(Icons.check_circle, color: Colors.green, size: 28)
-                  else
-                    Text(
-                      "$testNumber", 
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: numberColor)
-                    ),
-                  Text(
-                    isCompleted ? "Bitti" : "Test", 
-                    style: TextStyle(
-                      fontSize: 10, 
-                      color: labelColor,
-                      fontWeight: isCompleted ? FontWeight.bold : FontWeight.normal
-                    )
-                  ),
-                ],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isCompleted)
+                      const Icon(Icons.check_rounded, color: Colors.green, size: 24)
+                    else
+                      Text(
+                        "$testNumber", 
+                        style: TextStyle(
+                          fontSize: 20, 
+                          fontWeight: FontWeight.w800, 
+                          color: numberColor // Artık zorluk renginde!
+                        )
+                      ),
+                    
+                    if (!isCompleted)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          "Test", 
+                          style: TextStyle(
+                            fontSize: 9, 
+                            color: isDarkMode ? Colors.grey[600] : Colors.grey[500],
+                            fontWeight: FontWeight.w500,
+                          )
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
+  
+  Widget _animatedWidget({required int index, required Widget child}) {
+    final Animation<double> animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Interval(
+          (1 / 10) * index, 
+          1.0, 
+          curve: Curves.easeOutQuart
+        ),
+      ),
+    );
+
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - animation.value)), 
+          child: Opacity(
+            opacity: animation.value,
+            child: child,
           ),
         );
       },
+      child: child,
     );
   }
 
@@ -238,39 +351,44 @@ class _TestListScreenState extends State<TestListScreen> {
   }
 
   void _showChoiceDialog(int testNumber) {
+    bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        // Koyu mod uyumlu Dialog
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
-        title: Text(
-          "Test $testNumber Tamamlandı ✅",
-          style: TextStyle(
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black
-          ),
+        backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.green),
+            const SizedBox(width: 10),
+            Text(
+              "Test $testNumber",
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : Colors.black
+              ),
+            ),
+          ],
         ),
         content: Text(
-          "Ne yapmak istersin?",
+          "Bu testi daha önce tamamladınız. Ne yapmak istersiniz?",
           style: TextStyle(
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87
+            color: isDarkMode ? Colors.white70 : Colors.black87
           ),
         ),
         actions: [
-          // 1. SEÇENEK: SONUCU İNCELE
-          TextButton.icon(
-            icon: const Icon(Icons.receipt_long, color: Colors.blue),
-            label: const Text("Cevapları İncele"),
+          TextButton(
+            child: const Text("Cevapları Gör"),
             onPressed: () {
               Navigator.pop(context); 
               _navigateToReview(testNumber);
             },
           ),
-          
-          // 2. SEÇENEK: BAŞTAN BAŞLA
-          ElevatedButton.icon(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            label: const Text("Baştan Çöz", style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.themeColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+            ),
+            child: const Text("Tekrar Çöz", style: TextStyle(color: Colors.white)),
             onPressed: () {
               Navigator.pop(context); 
               _startQuiz(testNumber); 
