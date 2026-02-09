@@ -17,7 +17,8 @@ import 'quiz_screen.dart';
 import 'mistakes_screen.dart';
 import 'blog_screen.dart';
 import 'focus_screen.dart'; // Odak Modu Importu
-import 'analysis_screen.dart'; // 🔥 YENİ EKLENDİ: Analiz Ekranı Importu
+import 'analysis_screen.dart'; // Analiz Ekranı Importu
+import 'flashcards_screen.dart'; // 🔥 YENİ EKLENDİ: Bilgi Kartları Sayfası
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -849,13 +850,11 @@ class DashboardScreen extends StatelessWidget {
                        isDarkMode ? const Color(0xFF10B981) : Colors.green.shade400, 
                        isDarkMode,
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("🚀 Bilgi Kartları modülü yakında hazırlanıyor!"),
-                              duration: Duration(seconds: 2),
-                              backgroundColor: Colors.green,
-                            )
-                          );  
+                           // 🔥 GÜNCELLENEN KISIM: YENİ SAYFAYA YÖNLENDİRME
+                           Navigator.push(
+                            context, 
+                            MaterialPageRoute(builder: (context) => const FlashcardsScreen())
+                          );
                         }
                       ),
                     ),
