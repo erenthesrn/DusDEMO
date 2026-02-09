@@ -17,6 +17,7 @@ import 'quiz_screen.dart';
 import 'mistakes_screen.dart';
 import 'blog_screen.dart';
 import 'focus_screen.dart'; // Odak Modu Importu
+import 'analysis_screen.dart'; // 🔥 YENİ EKLENDİ: Analiz Ekranı Importu
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -166,12 +167,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- 1. MODÜL: PRATİK (KONU SEÇİMİ) ---
   void _showTopicSelection(BuildContext context) {
-    // Tema kontrolü ve dinamik renkler
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    // --- PREMIUM DARK PALETİ ---
-    final Color backgroundColor = isDarkMode ? const Color(0xFF161B22) : Colors.white; // Antrasit
-    final Color titleColor = isDarkMode ? const Color(0xFFE6EDF3) : const Color(0xFF1E293B); // Kırık Beyaz
+    final Color backgroundColor = isDarkMode ? const Color(0xFF161B22) : Colors.white; 
+    final Color titleColor = isDarkMode ? const Color(0xFFE6EDF3) : const Color(0xFF1E293B); 
     final Color subtitleColor = isDarkMode ? Colors.grey.shade400 : Colors.blueGrey.shade400;
 
     showModalBottomSheet(
@@ -180,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
       isScrollControlled: true,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: backgroundColor, // Dinamik arka plan
+          color: backgroundColor, 
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
@@ -200,22 +198,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               
-              Text(
-                "Çalışma Alanı", 
-                style: GoogleFonts.inter(
-                  fontSize: 22, 
-                  fontWeight: FontWeight.w800, 
-                  color: titleColor 
-                )
-              ),
+              Text("Çalışma Alanı", style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: titleColor)),
               const SizedBox(height: 4),
-              Text(
-                "Hangi alanda pratik yapmak istersin?", 
-                style: GoogleFonts.inter(
-                  fontSize: 14, 
-                  color: subtitleColor
-                )
-              ),
+              Text("Hangi alanda pratik yapmak istersin?", style: GoogleFonts.inter(fontSize: 14, color: subtitleColor)),
               const SizedBox(height: 32),
               
               Row(
@@ -285,10 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
 
-    // Tema Ayarları
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
-    // --- PREMIUM DARK RENKLER ---
     Color bgColor = isDarkMode ? const Color(0xFF161B22) : Colors.white;
     Color titleColor = isDarkMode ? const Color(0xFFE6EDF3) : const Color(0xFF1E293B);
     Color subtitleColor = isDarkMode ? Colors.grey.shade400 : Colors.blueGrey.shade400;
@@ -390,7 +372,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    // Liste arka planı
     Color bgColor = isDarkMode ? const Color(0xFF161B22) : Colors.white;
     Color textColor = isDarkMode ? const Color(0xFFE6EDF3) : Colors.black87;
 
@@ -446,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- KART YAPISI (PREMIUM DARK ENTEGRE EDİLDİ) ---
+  // --- KART YAPISI ---
   Widget _buildModernCard(BuildContext context, {
     required String title, 
     required IconData icon, 
@@ -458,11 +439,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    // --- PREMIUM KART RENKLERİ ---
     Color textColor = isDarkMode ? const Color(0xFFE6EDF3) : const Color(0xFF1E293B);
-    Color cardColor = isDarkMode ? const Color(0xFF161B22) : Colors.white; // Antrasit Kart
+    Color cardColor = isDarkMode ? const Color(0xFF161B22) : Colors.white; 
     Color subtitleColor = isDarkMode ? Colors.white60 : Colors.blueGrey;
-    Color borderColor = isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.1); // İnce parlak kenar
+    Color borderColor = isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.1); 
 
     return Container(
       height: isWide ? 100 : 160,
@@ -543,7 +523,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    // --- ARKA PLAN (Glass Effect için Gradient) ---
     Widget background = isDarkMode 
       ? Container(
           decoration: const BoxDecoration(
@@ -551,17 +530,17 @@ class _HomeScreenState extends State<HomeScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color(0xFF0A0E14), // Derin Uzay Siyahı
-                Color(0xFF161B22), // Antrasit
+                Color(0xFF0A0E14), 
+                Color(0xFF161B22), 
               ]
             )
           ),
         )
       : Container(color: const Color(0xFFF5F9FF));
 
-    // Nav bar rengi (Karanlık modda şeffaf)
     Color navBarColor = isDarkMode ? const Color(0xFF161B22).withOpacity(0.8) : Colors.white;
 
+    // 🔥🔥 BURASI DEĞİŞTİ: Artık Analiz Ekranı açılacak!
     List<Widget> currentPages = [
       DashboardScreen(
         targetBranch: _targetBranch,
@@ -577,24 +556,16 @@ class _HomeScreenState extends State<HomeScreen> {
         onPratikTap: () => _showTopicSelection(context), 
       ),
       const BlogScreen(),
-      Scaffold(
-        backgroundColor: Colors.transparent, 
-        body: Center(
-          child: Text(
-            "Analiz Ekranı Hazırlanıyor...",
-            style: TextStyle(color: isDarkMode ? const Color(0xFFE6EDF3) : Colors.black54),
-          )
-        )
-      ),
+      const AnalysisScreen(), // 🔥 BURAYI DÜZELTTİK: Placeholder yerine Gerçek Ekran!
       const ProfileScreen(),
     ];
 
     return Scaffold(
-      extendBody: true, // Glass Nav Bar için gövdeyi aşağı uzatıyoruz
+      extendBody: true,
       body: Stack(
         alignment: Alignment.topCenter,
         children: [
-          background, // 🔥 ARKA PLAN GRADIENT (ZEMİN)
+          background,
           IndexedStack(
             index: _selectedIndex,
             children: currentPages,
@@ -611,10 +582,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: ClipRRect( // 🔥 NAV BAR GLASS EFFECT
+      bottomNavigationBar: ClipRRect( 
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // BLUR
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), 
           child: Container(
             decoration: BoxDecoration(
               color: navBarColor, 
@@ -630,7 +601,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: NavigationBar(
               height: 80,
-              backgroundColor: Colors.transparent, // Transparan
+              backgroundColor: Colors.transparent, 
               elevation: 0,
               indicatorColor: Colors.transparent,
               selectedIndex: _selectedIndex,
@@ -731,11 +702,7 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
-    // --- DASHBOARD PREMIUM RENKLER ---
-    Color cardColor = isDarkMode ? const Color(0xFF161B22).withOpacity(0.7) : Colors.white; // Hafif Saydam
     Color textColor = isDarkMode ? const Color(0xFFE6EDF3) : Colors.black87;
-    
-    // 🔥 RENK GÜNCELLEMESİ (HEADER): Daha canlı mavi
     Color headerColor = isDarkMode ? const Color(0xFF2563EB).withOpacity(0.6) : const Color(0xFF0D47A1);
 
     return SingleChildScrollView(
@@ -746,13 +713,13 @@ class DashboardScreen extends StatelessWidget {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
             child: BackdropFilter(
-              filter: isDarkMode ? ImageFilter.blur(sigmaX: 10, sigmaY: 10) : ImageFilter.blur(sigmaX: 0, sigmaY: 0), // Sadece dark mode'da blur
+              filter: isDarkMode ? ImageFilter.blur(sigmaX: 10, sigmaY: 10) : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: headerColor, 
                   borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
-                  border: isDarkMode ? Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))) : null // İnce alt çizgi
+                  border: isDarkMode ? Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))) : null 
                 ),
                 child: SafeArea(
                   bottom: false,
@@ -866,7 +833,6 @@ class DashboardScreen extends StatelessWidget {
                         'Pratik', 
                         'Soru Çöz', 
                         Icons.play_arrow, 
-                        // 🔥 GÜNCELLEME: Koyu Mavi (0xFF1E3A8A) yerine Canlı Mavi (0xFF3B82F6)
                         isDarkMode ? const Color(0xFF3B82F6) : const Color(0xFF0D47A1), 
                         isDarkMode,
                         onTap: () {
@@ -880,7 +846,6 @@ class DashboardScreen extends StatelessWidget {
                         'Bilgi\nKartları',
                         'Tekrar Et', 
                         Icons.style,
-                       // 🔥 GÜNCELLEME: Koyu Yeşil (0xFF065F46) yerine Canlı Zümrüt Yeşili (0xFF10B981)
                        isDarkMode ? const Color(0xFF10B981) : Colors.green.shade400, 
                        isDarkMode,
                         onTap: () {
@@ -900,7 +865,6 @@ class DashboardScreen extends StatelessWidget {
                         'Yanlışlar', 
                         'Hataları Gör', 
                         Icons.refresh, 
-                        // 🔥 GÜNCELLEME: Koyu Kırmızı (0xFF7F1D1D) yerine Canlı Kırmızı (0xFFEF4444)
                         isDarkMode ? const Color(0xFFEF4444) : const Color.fromARGB(255, 205, 16, 35), 
                         isDarkMode,
                         onTap: () {
@@ -915,7 +879,6 @@ class DashboardScreen extends StatelessWidget {
                   'Odak Modu (Timer)', 
                   'Pomodoro ile verimli çalış', 
                   Icons.track_changes, 
-                  // 🔥 GÜNCELLEME: Koyu Mor (0xFF4C1D95) yerine Canlı Mor (0xFF8B5CF6)
                   isDarkMode ? const Color(0xFF8B5CF6) : Colors.deepPurple, 
                   isDarkMode,
                   onTap: () {
@@ -934,7 +897,6 @@ class DashboardScreen extends StatelessWidget {
 
   // --- YARDIMCI WIDGET'LAR ---
 
-  // 🔥 GLASS CARD YARDIMCISI
   Widget _buildGlassCard({required Widget child, required bool isDark}) {
     if (!isDark) {
       return Container(
@@ -951,11 +913,11 @@ class DashboardScreen extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(32),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // BLUR
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), 
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFF161B22).withOpacity(0.6), // Yarı Saydam
+            color: const Color(0xFF161B22).withOpacity(0.6), 
             borderRadius: BorderRadius.circular(32),
             border: Border.all(color: Colors.white.withOpacity(0.1)),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 6))],
@@ -967,7 +929,6 @@ class DashboardScreen extends StatelessWidget {
   }
   
   Widget _buildActionBtnVertical(String title, String sub, IconData icon, Color color, bool isDark, {required VoidCallback onTap}) {
-    // Glass Taban Rengi
     Color baseColor = isDark ? color.withOpacity(0.2) : color;
 
     Widget content = Container(
@@ -1001,7 +962,7 @@ class DashboardScreen extends StatelessWidget {
       return ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5), // Buton içi blur
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5), 
           child: GestureDetector(onTap: onTap, child: content),
         ),
       );

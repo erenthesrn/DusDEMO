@@ -28,6 +28,9 @@ dependencies:
   # Animasyon dosyan (loading_dent.json) var ama lottie paketi eksikti, onu da ekledim:
   lottie: ^3.1.0
 
+  # --- İSTATİSTİK SAYFASI İÇİN EKLENEN ---
+  fl_chart: ^0.68.0  # Grafikleri çizdirmek için gerekli paket
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
