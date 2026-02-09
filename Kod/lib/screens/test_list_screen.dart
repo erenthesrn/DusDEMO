@@ -96,33 +96,41 @@ class _TestListScreenState extends State<TestListScreen> with SingleTickerProvid
       ),
       body: Stack(
         children: [
-          // --- ARKA PLAN EFEKTLERİ ---
+          // --- ARKA PLAN EFEKTLERİ ---// --- ARKA PLAN EFEKTLERİ (OPTİMİZE EDİLDİ 🚀) ---
           if (isDarkMode)
             Positioned(
-              top: -100, right: -100,
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                child: Container(
-                  width: 300, height: 300,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: widget.themeColor.withOpacity(0.15),
-                  ),
+              top: -50, right: -50, // Konumu biraz içeri çektik çünkü shadow yayılıyor
+              child: Container(
+                width: 100, height: 100, // Boyutu küçülttük
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent, // Ana renk şeffaf
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.themeColor.withOpacity(0.3), // Rengi buraya taşıdık
+                      blurRadius: 100, // Blur'u shadow ile veriyoruz (GPU dostu)
+                      spreadRadius: 60, // Işığı yayıyoruz
+                    ),
+                  ],
                 ),
               ),
             ),
           
           if (isDarkMode)
             Positioned(
-              bottom: -50, left: -50,
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-                child: Container(
-                  width: 200, height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.blueAccent.withOpacity(0.1),
-                  ),
+              bottom: -20, left: -20,
+              child: Container(
+                width: 80, height: 80, 
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blueAccent.withOpacity(0.25),
+                      blurRadius: 80,
+                      spreadRadius: 50,
+                    ),
+                  ],
                 ),
               ),
             ),

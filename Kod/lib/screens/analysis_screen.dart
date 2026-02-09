@@ -116,10 +116,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: isDarkMode ? Colors.white : Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false, // 🔥 BURASI EKLENDİ: Otomatik geri butonunu engeller
+        // leading: ... 🔥 BURASI SİLİNDİ: Elle eklenen geri butonu kaldırıldı.
       ),
       body: Stack(
         children: [

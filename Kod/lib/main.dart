@@ -117,7 +117,7 @@ class DusApp extends StatelessWidget {
               if (snapshot.hasData) {
                 return const HomeScreen();
               }
-              return const LoginPage();
+              return const HomeScreen();
             },
           ),
         );
