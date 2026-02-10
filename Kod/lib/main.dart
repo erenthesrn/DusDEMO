@@ -1,4 +1,7 @@
 // lib/main.dart
+import 'package:dus_app_1/screens/email_verification_page.dart';
+import 'package:dus_app_1/screens/onboarding_page.dart';
+import 'package:dus_app_1/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -115,9 +118,9 @@ class DusApp extends StatelessWidget {
                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
               }
               if (snapshot.hasData) {
-                return const HomeScreen();
+                return const LoginPage();
               }
-              return const HomeScreen();
+              return const LoginPage();
             },
           ),
         );

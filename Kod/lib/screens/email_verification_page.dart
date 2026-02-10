@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
-import 'onboarding_page.dart'; // YENİ: Onboarding sayfasına gitmek için import ettik
+import 'onboarding_page.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   const EmailVerificationPage({super.key});
@@ -15,22 +15,19 @@ class EmailVerificationPage extends StatefulWidget {
 class _EmailVerificationScreenState extends State<EmailVerificationPage> {
   bool isEmailVerified = false;
   bool canResendEmail = false;
-  Timer? countdownTimer;      // Geri sayım için timer
-  Timer? checkVerifiedTimer;  // YENİ: Doğrulamayı kontrol eden timer
+  Timer? countdownTimer;
+  Timer? checkVerifiedTimer;
   int countdown = 90;
 
   @override
   void initState() {
     super.initState();
 
-    // Mevcut durumu kontrol et
     isEmailVerified = FirebaseAuth.instance.currentUser?.emailVerified ?? false;
 
     if (!isEmailVerified) {
-      // 1. Geri sayımı başlat (Tekrar gönder butonu için)
       startCountdownTimer();
       
-      // 2. YENİ: Arka planda sürekli kontrol etmeye başla (Her 3 saniyede bir)
       checkVerifiedTimer = Timer.periodic(
         const Duration(seconds: 3), 
         (_) => checkEmailVerified(),
@@ -38,9 +35,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
     }
   }
 
-  // YENİ: Firebase'e gidip "Doğrulandı mı?" diye soran fonksiyon
   Future<void> checkEmailVerified() async {
-    // Kullanıcı bilgisini yenile (Reload) yapmazsak Firebase eski veriyi döndürür
     await FirebaseAuth.instance.currentUser?.reload();
 
     setState(() {
@@ -48,12 +43,9 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
     });
 
     if (isEmailVerified) {
-      // Eğer doğrulanmışsa:
-      // 1. Tüm sayaçları durdur
       countdownTimer?.cancel();
       checkVerifiedTimer?.cancel();
 
-      // 2. Kullanıcıya haber ver (Opsiyonel)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -63,7 +55,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
           ),
         );
 
-        // 3. Direkt Onboarding sayfasına yönlendir
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const OnboardingPage()), 
           (route) => false,
@@ -95,7 +86,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
       final user = FirebaseAuth.instance.currentUser;
       await user?.sendEmailVerification();
 
-      // Mail gönderildikten sonra sayacı tekrar başlat
       startCountdownTimer();
       
       if (mounted) {
@@ -113,7 +103,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
   }
 
   Future<void> cancelAndReturnToLogin() async {
-    // Timerları temizle
     countdownTimer?.cancel();
     checkVerifiedTimer?.cancel();
     
@@ -129,7 +118,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
 
   @override
   void dispose() {
-    // Sayfa kapanırsa timerları öldür, yoksa arka planda çalışmaya devam ederler
     countdownTimer?.cancel();
     checkVerifiedTimer?.cancel();
     super.dispose();
@@ -140,82 +128,85 @@ class _EmailVerificationScreenState extends State<EmailVerificationPage> {
     final user = FirebaseAuth.instance.currentUser;
     final email = user?.email ?? "E-posta adresi alınamadı";
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Text(
-                'E-posta Doğrulama',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 40),
-              
-              const Icon(
-                Icons.mark_email_read_outlined, 
-                size: 100, 
-                color: Colors.blue
-              ),
-              
-              const SizedBox(height: 20),
-              
-              const Text(
-                'Doğrulama Maili Gönderildi! 📧',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              
-              const SizedBox(height: 10),
-              
-              Text(
-                '$email adresine bir doğrulama bağlantısı gönderdik.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              const Text(
-                'Lütfen mail kutunuzu (gelen kutusu veya spam/gereksiz klasörünü) kontrol edin ve gelen linke tıklayın.\n\nSistem otomatik olarak onayınızı algılayacaktır...',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, height: 1.5),
-              ),
-              
-              const SizedBox(height: 40),
-              
-              // Buton
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: canResendEmail ? sendVerificationEmail : null,
-                  icon: const Icon(Icons.email),
-                  label: Text(
-                    canResendEmail 
-                      ? 'Tekrar Mail Gönder' 
-                      : 'Tekrar Gönder (${countdown}s)',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[200],
-                    foregroundColor: Colors.black,
+    // DÜZENLEME: Theme widget'ı ile sarmalayarak bu sayfayı zorla Light Mode yapıyoruz.
+    return Theme(
+      data: ThemeData.light(), // Bu satır sayesinde altındaki tüm textler siyah olur
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'E-posta Doğrulama',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 40),
+                
+                const Icon(
+                  Icons.mark_email_read_outlined, 
+                  size: 100, 
+                  color: Colors.blue
+                ),
+                
+                const SizedBox(height: 20),
+                
+                const Text(
+                  'Doğrulama Maili Gönderildi! 📧',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                
+                const SizedBox(height: 10),
+                
+                Text(
+                  '$email adresine bir doğrulama bağlantısı gönderdik.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                const Text(
+                  'Lütfen mail kutunuzu (gelen kutusu veya spam/gereksiz klasörünü) kontrol edin ve gelen linke tıklayın.\n\nSistem otomatik olarak onayınızı algılayacaktır...',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, height: 1.5),
+                ),
+                
+                const SizedBox(height: 40),
+                
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: canResendEmail ? sendVerificationEmail : null,
+                    icon: const Icon(Icons.email),
+                    label: Text(
+                      canResendEmail 
+                        ? 'Tekrar Mail Gönder' 
+                        : 'Tekrar Gönder (${countdown}s)',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[200],
+                      foregroundColor: Colors.black,
+                    ),
                   ),
                 ),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              TextButton(
-                onPressed: cancelAndReturnToLogin,
-                child: const Text(
-                  'Vazgeç ve Girişe Dön',
-                  style: TextStyle(color: Colors.grey),
+                
+                const SizedBox(height: 20),
+                
+                TextButton(
+                  onPressed: cancelAndReturnToLogin,
+                  child: const Text(
+                    'Vazgeç ve Girişe Dön',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

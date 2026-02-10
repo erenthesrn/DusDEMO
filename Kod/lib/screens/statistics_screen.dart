@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart'; // Grafikler için gerekli
-import 'package:percent_indicator/percent_indicator.dart'; // Dairesel gösterge için
+import 'package:fl_chart/fl_chart.dart';
+import 'package:percent_indicator/percent_indicator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:ui';
+import 'package:intl/intl.dart'; // Tarih formatı için ekledik (pubspec.yaml'a eklemelisin: intl: ^0.18.0)
 import '/services/theme_provider.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -14,36 +15,30 @@ class StatisticsScreen extends StatefulWidget {
 }
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
-  // Veri Değişkenleri
+  // --- Veri Değişkenleri ---
   bool _isLoading = true;
   int _totalSolved = 0;
   int _totalCorrect = 0;
   int _totalWrong = 0;
+  
+  // Varsayılan boş veri (Dersler yüklenene kadar veya hiç çözülmemişse)
   Map<String, double> _subjectPerformance = {};
   
-  // Örnek grafik verisi (Gerçek veriyi Firebase'den çekip buraya mapleyebilirsin)
-  final List<FlSpot> _weeklyProgress = const [
-    FlSpot(1, 15),
-    FlSpot(2, 25),
-    FlSpot(3, 20),
-    FlSpot(4, 40),
-    FlSpot(5, 35),
-    FlSpot(6, 60),
-    FlSpot(7, 65), // Bugün
-  ];
+  // Grafik için varsayılan boş liste
+  List<FlSpot> _weeklyProgress = [];
+  List<String> _weeklyLabels = []; // X ekseni etiketleri (Pzt, Sal...)
 
   @override
   void initState() {
     super.initState();
-    _fetchStatistics();
+    _fetchRealStatistics();
   }
 
-  Future<void> _fetchStatistics() async {
+  Future<void> _fetchRealStatistics() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     try {
-      // 1. Firebase'den Genel Verileri Çek
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -52,27 +47,67 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       if (userDoc.exists) {
         Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
         
-        setState(() {
-          _totalSolved = data['totalSolved'] ?? 0;
-          _totalCorrect = data['totalCorrect'] ?? 0;
-          _totalWrong = _totalSolved - _totalCorrect; // Basit hesaplama
+        // 1. Temel Sayaçlar
+        int solved = data['totalSolved'] ?? 0;
+        int correct = data['totalCorrect'] ?? 0;
+        
+        // "stats" haritasını güvenli çek
+        Map<String, dynamic> stats = data['stats'] != null 
+            ? data['stats'] as Map<String, dynamic> 
+            : {};
+
+        // 2. Ders Bazlı Performans İşleme
+        Map<String, double> newSubjectPerf = {};
+        if (stats.containsKey('subjects')) {
+          Map<String, dynamic> subjects = stats['subjects'];
           
-          // Ders bazlı performans (İleride bunu detaylandırabilirsin)
-          _subjectPerformance = {
-            "Anatomi": 0.75,
-            "Biyokimya": 0.40,
-            "Fizyoloji": 0.60,
-            "Farmakoloji": 0.85,
-            "Patoloji": 0.30,
-            "Klinik Bilimler": 0.55,
-          };
+          subjects.forEach((key, value) {
+            // value şuna benzer: { "correct": 10, "total": 20 }
+            int sTotal = value['total'] ?? 0;
+            int sCorrect = value['correct'] ?? 0;
+            
+            if (sTotal > 0) {
+              newSubjectPerf[key] = sCorrect / sTotal;
+            } else {
+              newSubjectPerf[key] = 0.0;
+            }
+          });
+        }
+
+        // 3. Haftalık Grafik Verisi Hazırlama (Son 7 Gün)
+        List<FlSpot> spots = [];
+        List<String> labels = [];
+        Map<String, dynamic> history = stats['dailyHistory'] ?? {};
+        
+        DateTime now = DateTime.now();
+        // Bugünden geriye 7 gün git
+        for (int i = 6; i >= 0; i--) {
+          DateTime dateToCheck = now.subtract(Duration(days: i));
+          String dateKey = DateFormat('yyyy-MM-dd').format(dateToCheck); // Örn: 2024-02-10
+          String dayLabel = DateFormat('EEE', 'tr_TR').format(dateToCheck); // Örn: Pzt (Locale tr ayarlıysa)
+
+          double solvedCount = (history[dateKey] ?? 0).toDouble();
           
-          _isLoading = false;
-        });
+          // X ekseni 0..6 arası index, Y ekseni soru sayısı
+          spots.add(FlSpot((6 - i).toDouble(), solvedCount));
+          labels.add(dayLabel);
+        }
+
+        if (mounted) {
+          setState(() {
+            _totalSolved = solved;
+            _totalCorrect = correct;
+            _totalWrong = solved - correct;
+            _subjectPerformance = newSubjectPerf;
+            _weeklyProgress = spots;
+            _weeklyLabels = labels;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       debugPrint("İstatistik hatası: $e");
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -81,7 +116,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final themeProvider = ThemeProvider.instance;
     final isDarkMode = themeProvider.isDarkMode;
 
-    // Arka Plan (Profile Screen ile aynı uyumda)
     Widget background = isDarkMode 
       ? Container(
           decoration: const BoxDecoration(
@@ -97,7 +131,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text("İstatistiklerim", style: TextStyle(color: isDarkMode ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+        title: Text("DUS Analiz", style: TextStyle(color: isDarkMode ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -112,12 +146,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
+          else if (_totalSolved == 0)
+             _buildEmptyState(isDarkMode) // Hiç soru çözülmemişse
           else
             SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 100, 20, 30),
               child: Column(
                 children: [
-                  // 1. GENEL BAŞARI KARTI
                   _buildGlassContainer(
                     isDark: isDarkMode,
                     child: _buildSuccessSummary(isDarkMode),
@@ -125,7 +160,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   
                   const SizedBox(height: 20),
 
-                  // 2. DETAYLI SAYILAR (GRID)
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -137,16 +171,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       _buildStatCard("Toplam Soru", "$_totalSolved", Icons.assignment, Colors.blue, isDarkMode),
                       _buildStatCard("Doğru", "$_totalCorrect", Icons.check_circle, Colors.green, isDarkMode),
                       _buildStatCard("Yanlış", "$_totalWrong", Icons.cancel, Colors.red, isDarkMode),
-                      _buildStatCard("Net Ort.", "${(_totalCorrect - (_totalWrong / 4)).toStringAsFixed(1)}", Icons.timeline, Colors.orange, isDarkMode),
+                      // Net hesabı: DUS'ta 4 yanlış 1 doğruyu götürmez genelde ama YÖK dil vb. mantığıyla kalmışsa:
+                      _buildStatCard("Başarı", "%${((_totalCorrect/_totalSolved)*100).toStringAsFixed(1)}", Icons.timeline, Colors.orange, isDarkMode),
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
-                  // 3. HAFTALIK GRAFİK
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text("Haftalık İlerleme 📈", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black87)),
+                    child: Text("Haftalık Aktivite 🔥", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black87)),
                   ),
                   const SizedBox(height: 10),
                   _buildGlassContainer(
@@ -160,19 +194,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
                   const SizedBox(height: 20),
 
-                  // 4. DERS BAZLI PERFORMANS
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text("Ders Analizi 📚", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black87)),
+                    child: Text("Ders Bazlı Başarım 📚", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black87)),
                   ),
                   const SizedBox(height: 10),
                   _buildGlassContainer(
                     isDark: isDarkMode,
-                    child: Column(
-                      children: _subjectPerformance.entries.map((entry) {
-                        return _buildSubjectBar(entry.key, entry.value, isDarkMode);
-                      }).toList(),
-                    ),
+                    child: _subjectPerformance.isEmpty 
+                      ? const Text("Henüz ders bazlı veri oluşmadı.")
+                      : Column(
+                          children: _subjectPerformance.entries.map((entry) {
+                            return _buildSubjectBar(entry.key, entry.value, isDarkMode);
+                          }).toList(),
+                        ),
                   ),
                 ],
               ),
@@ -182,12 +217,36 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  // --- WIDGET PARÇALARI ---
+  // --- YARDIMCI WIDGETLAR ---
 
-  // 1. Büyük Başarı Özeti (Circular Percent Indicator)
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.analytics_outlined, size: 80, color: isDark ? Colors.white24 : Colors.grey),
+          const SizedBox(height: 20),
+          Text("Henüz veri yok!", style: TextStyle(color: isDark ? Colors.white : Colors.black, fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          const Text("Test çözdükçe istatistiklerin burada belirecek.", textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSuccessSummary(bool isDark) {
     double successRate = _totalSolved == 0 ? 0 : (_totalCorrect / _totalSolved);
     
+    // En iyi ve en kötü dersi bulma
+    String bestSubject = "-";
+    String worstSubject = "-";
+    if (_subjectPerformance.isNotEmpty) {
+      var sortedEntries = _subjectPerformance.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value)); // Büyükten küçüğe
+      bestSubject = sortedEntries.first.key;
+      worstSubject = sortedEntries.last.key;
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
@@ -203,27 +262,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 "%${(successRate * 100).toInt()}",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24.0, color: isDark ? Colors.white : Colors.black),
               ),
-              Text("Başarı", style: TextStyle(fontSize: 12.0, color: isDark ? Colors.white60 : Colors.grey)),
+              Text("Genel", style: TextStyle(fontSize: 12.0, color: isDark ? Colors.white60 : Colors.grey)),
             ],
           ),
           circularStrokeCap: CircularStrokeCap.round,
-          progressColor: const Color(0xFF00C6FF), // Neon Mavi
+          progressColor: const Color(0xFF00C6FF),
           backgroundColor: isDark ? Colors.white10 : Colors.grey.shade200,
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Durum Analizi", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text("Analiz", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            _buildLegendItem(Icons.circle, Colors.green, "Güçlü: Anatomi"),
+            _buildLegendItem(Icons.arrow_upward, Colors.green, "En İyi: $bestSubject"),
             const SizedBox(height: 4),
-            _buildLegendItem(Icons.circle, Colors.red, "Zayıf: Patoloji"),
+            _buildLegendItem(Icons.arrow_downward, Colors.red, "Geliştir: $worstSubject"),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-              child: const Text("Hedef: Cerrahi 🎯", style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold)),
-            )
           ],
         )
       ],
@@ -233,14 +287,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Widget _buildLegendItem(IconData icon, Color color, String text) {
     return Row(
       children: [
-        Icon(icon, size: 10, color: color),
+        Icon(icon, size: 14, color: color),
         const SizedBox(width: 5),
         Text(text, style: const TextStyle(fontSize: 13)),
       ],
     );
   }
 
-  // 2. Küçük İstatistik Kartları
   Widget _buildStatCard(String title, String value, IconData icon, Color color, bool isDark) {
     return Container(
       decoration: BoxDecoration(
@@ -265,12 +318,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  // 3. Çizgi Grafik (Line Chart)
   Widget _buildLineChart(bool isDark) {
-    List<Color> gradientColors = [
-      const Color(0xFF23b6e6),
-      const Color(0xFF02d39a),
-    ];
+    List<Color> gradientColors = [const Color(0xFF23b6e6), const Color(0xFF02d39a)];
+
+    if (_weeklyProgress.isEmpty) {
+      return Center(child: Text("Veri yok", style: TextStyle(color: isDark ? Colors.white54 : Colors.grey)));
+    }
+
+    // Y ekseni için maksimum değeri bul (grafik taşmasın)
+    double maxY = _weeklyProgress.map((e) => e.y).reduce((a, b) => a > b ? a : b);
+    if (maxY == 0) maxY = 10; // Hiç veri yoksa düz çizgi olmasın
 
     return LineChart(
       LineChartData(
@@ -289,10 +346,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               reservedSize: 30,
               interval: 1,
               getTitlesWidget: (value, meta) {
-                switch (value.toInt()) {
-                  case 1: return const Text('Pzt', style: TextStyle(fontSize: 10));
-                  case 4: return const Text('Prş', style: TextStyle(fontSize: 10));
-                  case 7: return const Text('Paz', style: TextStyle(fontSize: 10));
+                int index = value.toInt();
+                if (index >= 0 && index < _weeklyLabels.length) {
+                  // Sadece baş, orta ve son etiketleri veya hepsini (yer varsa) göster
+                  return Text(_weeklyLabels[index], style: TextStyle(fontSize: 10, color: isDark? Colors.white70 : Colors.black54));
                 }
                 return const Text('');
               },
@@ -301,9 +358,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ),
         borderData: FlBorderData(show: false),
         minX: 0,
-        maxX: 8,
+        maxX: 6, // 7 gün için 0..6
         minY: 0,
-        maxY: 80,
+        maxY: maxY * 1.2, // Biraz boşluk bırak
         lineBarsData: [
           LineChartBarData(
             spots: _weeklyProgress,
@@ -311,7 +368,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             gradient: LinearGradient(colors: gradientColors),
             barWidth: 4,
             isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
+            dotData: const FlDotData(show: true), // Noktaları göster ki veri belli olsun
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(colors: gradientColors.map((color) => color.withOpacity(0.3)).toList()),
@@ -322,7 +379,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  // 4. Ders İlerleme Çubuğu
   Widget _buildSubjectBar(String subject, double percent, bool isDark) {
     Color getColor(double p) {
       if (p >= 0.75) return Colors.green;
@@ -338,7 +394,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(subject, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              Text(subject, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: isDark ? Colors.white : Colors.black87)),
               Text("%${(percent * 100).toInt()}", style: TextStyle(fontWeight: FontWeight.bold, color: getColor(percent))),
             ],
           ),
@@ -357,7 +413,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  // --- GLASS CONTAINER YARDIMCISI ---
   Widget _buildGlassContainer({required Widget child, required bool isDark, EdgeInsetsGeometry padding = const EdgeInsets.all(20)}) {
     if (!isDark) {
       return Container(

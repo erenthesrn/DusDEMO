@@ -1,5 +1,3 @@
-// lib/screens/onboarding_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -96,150 +94,154 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Çok açık gri/beyaz
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        toolbarHeight: 0, // AppBar'ı gizle ama status bar kalsın
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- BAŞLIK ALANI ---
-              Text(
-                "Aramıza Hoş Geldin,\n$_userName! 👋",
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Seni daha yakından tanımak ve çalışma programını sana özel hazırlamak istiyoruz.",
-                style: TextStyle(fontSize: 16, color: Colors.grey[600], height: 1.5),
-              ),
-              const SizedBox(height: 32),
+    // DÜZENLEME: Theme widget'ı ile tüm sayfayı Light Mode'a zorluyoruz.
+    return Theme(
+      data: ThemeData.light(), 
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA), // Çok açık gri/beyaz
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          toolbarHeight: 0, // AppBar'ı gizle ama status bar kalsın
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- BAŞLIK ALANI ---
+                Text(
+                  "Aramıza Hoş Geldin,\n$_userName! 👋",
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Seni daha yakından tanımak ve çalışma programını sana özel hazırlamak istiyoruz.",
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600], height: 1.5),
+                ),
+                const SizedBox(height: 32),
 
-              // --- 1. SORU: DURUMUN ---
-              _buildSectionTitle("Şu anki durumun nedir?"),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10, runSpacing: 10,
-                children: [
-                  _buildSelectableChip("Dönem 3 Öğrencisi"),
-                  _buildSelectableChip("Dönem 4 Öğrencisi"),
-                  _buildSelectableChip("Dönem 5 Öğrencisi"),
-                  _buildSelectableChip("Mezun / Diş Hekimi"),
-                ],
-              ),
-              
-              const SizedBox(height: 32),
-
-              // --- 2. SORU: GÜNLÜK SÜRE HEDEFİ ---
-              _buildSectionTitle("Günlük çalışma SÜRESİ hedefin?"),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+                // --- 1. SORU: DURUMUN ---
+                _buildSectionTitle("Şu anki durumun nedir?"),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10, runSpacing: 10,
                   children: [
-                    _buildTimeChip(30, "Isınma"),
-                    const SizedBox(width: 10),
-                    _buildTimeChip(60, "İdeal"),
-                    const SizedBox(width: 10),
-                    _buildTimeChip(120, "Ciddi"),
-                    const SizedBox(width: 10),
-                    _buildTimeChip(180, "Hardcore"),
+                    _buildSelectableChip("Dönem 3 Öğrencisi"),
+                    _buildSelectableChip("Dönem 4 Öğrencisi"),
+                    _buildSelectableChip("Dönem 5 Öğrencisi"),
+                    _buildSelectableChip("Mezun / Diş Hekimi"),
                   ],
                 ),
-              ),
+                
+                const SizedBox(height: 32),
 
-              const SizedBox(height: 32),
-
-              // --- 3. SORU: GÜNLÜK SORU HEDEFİ (🔥 YENİ EKLENEN KISIM) ---
-              _buildSectionTitle("Günde kaç SORU çözmeyi hedefliyorsun?"),
-              const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade300),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-                  ],
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                child: TextField(
-                  controller: _questionGoalController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    hintText: "Örn: 100",
-                    hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
-                    suffixText: "Soru",
-                    suffixStyle: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54),
-                    icon: Icon(Icons.edit_note, color: Color(0xFF1565C0)),
+                // --- 2. SORU: GÜNLÜK SÜRE HEDEFİ ---
+                _buildSectionTitle("Günlük çalışma SÜRESİ hedefin?"),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildTimeChip(30, "Isınma"),
+                      const SizedBox(width: 10),
+                      _buildTimeChip(60, "İdeal"),
+                      const SizedBox(width: 10),
+                      _buildTimeChip(120, "Ciddi"),
+                      const SizedBox(width: 10),
+                      _buildTimeChip(180, "Hardcore"),
+                    ],
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 32),
+                const SizedBox(height: 32),
 
-              // --- 4. SORU: HEDEF UZMANLIK ---
-              _buildSectionTitle("Hangi uzmanlığı kazanmak istiyorsun?"),
-              const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  children: [
-                    _buildRadioTile("Radyoloji"),
-                    _buildDivider(),                    
-                    _buildRadioTile("Endodonti"),
-                    _buildDivider(),
-                    _buildRadioTile("Cerrahi"),
-                    _buildDivider(),
-                    _buildRadioTile("Pedodonti"),
-                    _buildDivider(),
-                    _buildRadioTile("Periodontoloji"),
-                    _buildDivider(),                    
-                    _buildRadioTile("Ortodonti"),
-                    _buildDivider(),
-                    _buildRadioTile("Protetik"),
-                    _buildDivider(),
-                    _buildRadioTile("Restoratif"),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // --- KAYDET BUTONU ---
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveAndContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1565C0),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 5,
-                    shadowColor: Colors.blue.withOpacity(0.4),
+                // --- 3. SORU: GÜNLÜK SORU HEDEFİ ---
+                _buildSectionTitle("Günde kaç SORU çözmeyi hedefliyorsun?"),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                    ],
                   ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Hemen Başla 🚀",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                  child: TextField(
+                    controller: _questionGoalController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: "Örn: 100",
+                      hintStyle: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal),
+                      suffixText: "Soru",
+                      suffixStyle: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54),
+                      icon: Icon(Icons.edit_note, color: Color(0xFF1565C0)),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-            ],
+
+                const SizedBox(height: 32),
+
+                // --- 4. SORU: HEDEF UZMANLIK ---
+                _buildSectionTitle("Hangi uzmanlığı kazanmak istiyorsun?"),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildRadioTile("Radyoloji"),
+                      _buildDivider(),                    
+                      _buildRadioTile("Endodonti"),
+                      _buildDivider(),
+                      _buildRadioTile("Cerrahi"),
+                      _buildDivider(),
+                      _buildRadioTile("Pedodonti"),
+                      _buildDivider(),
+                      _buildRadioTile("Periodontoloji"),
+                      _buildDivider(),                    
+                      _buildRadioTile("Ortodonti"),
+                      _buildDivider(),
+                      _buildRadioTile("Protetik"),
+                      _buildDivider(),
+                      _buildRadioTile("Restoratif"),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                // --- KAYDET BUTONU ---
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveAndContinue,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1565C0),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 5,
+                      shadowColor: Colors.blue.withOpacity(0.4),
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            "Hemen Başla 🚀",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
@@ -258,6 +260,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   // Durum Seçimi İçin Chip (Öğrenci/Mezun)
   Widget _buildSelectableChip(String label) {
     bool isSelected = _selectedStatus == label;
+    // Not: ChoiceChip dark mode'dan etkilenebilir, Theme(light) bunu da düzeltir.
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,

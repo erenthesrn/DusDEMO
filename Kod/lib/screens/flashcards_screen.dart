@@ -188,31 +188,77 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
             ),
           ),
 
+          // --- 🔥 GÜNCELLENEN BUTON ALANI (PREMIUM TASARIM) ---
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
             child: Row(
               children: [
                 Expanded(
-                  child: _buildActionButton(
-                    "Hatırlayamadım", 
-                    Icons.close_rounded, 
-                    Colors.red.shade400, 
-                    () => _nextCard(false),
+                  child: _buildActionButton( // Artık Custom Tasarım Kullanıyor
+                    label: "Hatırlayamadım", 
+                    icon: Icons.close_rounded, 
+                    color: Colors.red.shade400, 
+                    onTap: () => _nextCard(false),
+                    isDarkMode: isDark, // Parametre eklendi
                   ),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
-                  child: _buildActionButton(
-                    "Biliyorum", 
-                    Icons.check_rounded, 
-                    const Color(0xFF00BFA5), 
-                    () => _nextCard(true),
+                  child: _buildActionButton( // Artık Custom Tasarım Kullanıyor
+                    label: "Biliyorum", 
+                    icon: Icons.check_rounded, 
+                    color: const Color(0xFF00BFA5), 
+                    onTap: () => _nextCard(true),
+                    isDarkMode: isDark, // Parametre eklendi
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // --- 🔥 GÜNCELLENEN BUTON TASARIMI (ESKİ TASARIMIN ENTEGRASYONU) ---
+  Widget _buildActionButton({
+    required String label, 
+    required IconData icon, 
+    required Color color, 
+    required VoidCallback onTap, 
+    required bool isDarkMode
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 60,
+        decoration: BoxDecoration(
+          color: isDarkMode ? const Color(0xFF161B22) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.5), width: 1.5), // Çerçeve belirginleştirildi
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: isDarkMode ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -434,31 +480,6 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  // --- Alt Butonlar ---
-  Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
-    return ElevatedButton(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color.withOpacity(0.1),
-        foregroundColor: color,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: color.withOpacity(0.3)),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         ],
       ),
     );

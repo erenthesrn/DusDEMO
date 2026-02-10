@@ -61,53 +61,72 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 
   // 🔥 İSTATİSTİK GÜNCELLEME FONKSİYONU
-  Future<void> _updateStreakAndStats() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+// lib/screens/result_screen.dart içinde _updateStreakAndStats fonksiyonunu bul ve bununla değiştir:
 
-    final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+Future<void> _updateStreakAndStats() async {
+  User? user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+  
+  try {
+    DocumentSnapshot doc = await userDocRef.get();
+    if (!doc.exists) return;
     
-    try {
-      DocumentSnapshot doc = await userDocRef.get();
-      if (!doc.exists) return;
-      
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      
-      String today = DateTime.now().toIso8601String().split('T')[0];
-      String lastStudyDate = data['lastStudyDate'] ?? ""; 
-      int currentStreak = data['streak'] ?? 0;
-      int newStreak = currentStreak;
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    
+    // Tarih Formatı: YYYY-MM-DD (Grafikler için bu format şart)
+    String today = DateTime.now().toIso8601String().split('T')[0];
+    
+    String lastStudyDate = data['lastStudyDate'] ?? ""; 
+    int currentStreak = data['streak'] ?? 0;
+    int newStreak = currentStreak;
 
-      if (lastStudyDate != today) {
-        if (lastStudyDate.isNotEmpty) {
-           DateTime dateToday = DateTime.parse(today);
-           DateTime dateLast = DateTime.parse(lastStudyDate);
-           int diff = dateToday.difference(dateLast).inDays;
+    // --- Streak Mantığı (Senin yazdığın kısım aynen kalıyor) ---
+    if (lastStudyDate != today) {
+      if (lastStudyDate.isNotEmpty) {
+         DateTime dateToday = DateTime.parse(today);
+         DateTime dateLast = DateTime.parse(lastStudyDate);
+         int diff = dateToday.difference(dateLast).inDays;
 
-           if (diff == 1) {
-             newStreak++; 
-           } else {
-             newStreak = 1; 
-           }
-        } else {
-          newStreak = 1; 
-        }
+         if (diff == 1) {
+           newStreak++; 
+         } else {
+           newStreak = 1; 
+         }
+      } else {
+        newStreak = 1; 
       }
-      
-      await userDocRef.update({
-        'lastStudyDate': today,           
-        'streak': newStreak,              
-        'totalSolved': FieldValue.increment(widget.questions.length), 
-        'totalCorrect': FieldValue.increment(widget.correctCount),    
-        'dailySolved': FieldValue.increment(widget.questions.length), 
-      });
-      
-      debugPrint("🔥 Firebase güncellendi: Streak $newStreak oldu.");
-
-    } catch (e) {
-      debugPrint("Hata oluştu: $e");
     }
+
+    // --- ÖNEMLİ KISIM BAŞLIYOR: Veritabanı Güncelleme ---
+    
+    // Konu ismini güvenli hale getir (Örn: "Klinik Bilimler" -> Firestore'da sorun çıkarmaz ama yine de trim yapalım)
+    String safeTopic = widget.topic.trim(); 
+
+    await userDocRef.update({
+      // 1. Genel Veriler
+      'lastStudyDate': today,           
+      'streak': newStreak,              
+      'totalSolved': FieldValue.increment(widget.questions.length), 
+      'totalCorrect': FieldValue.increment(widget.correctCount),    
+      // dailySolved sadece o gün için sayaçtır, gece sıfırlanması gerekir ama şimdilik kalsın.
+      'dailySolved': FieldValue.increment(widget.questions.length), 
+
+      // 2. HAFTALIK GRAFİK İÇİN (stats.dailyHistory.2024-02-10)
+      'stats.dailyHistory.$today': FieldValue.increment(widget.questions.length),
+
+      // 3. DERS BAZLI GRAFİK İÇİN (stats.subjects.Anatomi.total / correct)
+      'stats.subjects.$safeTopic.total': FieldValue.increment(widget.questions.length),
+      'stats.subjects.$safeTopic.correct': FieldValue.increment(widget.correctCount),
+    });
+    
+    debugPrint("🔥 Firebase Tam Güncellendi: Streak, Grafik ve Ders Verileri işlendi.");
+
+  } catch (e) {
+    debugPrint("Hata oluştu: $e");
   }
+}
 
   @override
   Widget build(BuildContext context) {
