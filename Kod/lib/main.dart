@@ -1,29 +1,26 @@
 // lib/main.dart
-import 'package:dus_app_1/screens/email_verification_page.dart';
-import 'package:dus_app_1/screens/onboarding_page.dart';
-import 'package:dus_app_1/screens/profile_screen.dart';
-import 'package:intl/date_symbol_data_local.dart'; // Bunu ekle
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 
 // --- SERVİS İMPORTLARI ---
 import 'services/focus_service.dart';
 import 'services/theme_provider.dart';
+// MistakesService burada değil, HomeScreen içinde çağrılacak.
 
 // Sayfalar
 import 'screens/home_screen.dart';
 import 'screens/login_page.dart';
-import 'package:dus_app_1/screens/blog_screen.dart';
-import 'package:dus_app_1/screens/quiz_screen.dart';
+// Diğer kullanılmayan importları temizledim.
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('tr_TR', null); // Bunu ekle
+  await initializeDateFormatting('tr_TR', null);
 
   if (kIsWeb) {
     await Firebase.initializeApp(
@@ -52,6 +49,7 @@ void main() async {
     );
   }
 
+  // Focus servisini başlat
   FocusService.instance; 
 
   runApp(const DusApp());
@@ -92,14 +90,13 @@ class DusApp extends StatelessWidget {
           darkTheme: ThemeData(
             useMaterial3: true,
             brightness: Brightness.dark,
-            // Saf siyah yerine derin bir gece mavisi-antrasit tonu
             scaffoldBackgroundColor: const Color(0xFF0A0E14),
             primaryColor: const Color(0xFF1565C0),
-            cardColor: const Color(0xFF161B22), // GitHub Dark stili kartlar
+            cardColor: const Color(0xFF161B22),
             colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF448AFF), // Karanlıkta parlayan açık mavi
+              primary: Color(0xFF448AFF),
               surface: Color(0xFF161B22),
-              onSurface: Color(0xFFE6EDF3), // Kırık beyaz (göz yormaz)
+              onSurface: Color(0xFFE6EDF3),
               secondary: Color(0xFF00BFA5),
               error: Color(0xFFF85149),
             ),
@@ -113,14 +110,16 @@ class DusApp extends StatelessWidget {
             elevatedButtonTheme: _buildElevatedButtonTheme(),
           ),
 
+          // --- YÖNLENDİRME DÜZELTİLDİ ---
           home: StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(body: Center(child: CircularProgressIndicator()));
               }
+              // 🔥 Eğer kullanıcı giriş yaptıysa HomeScreen, yapmadıysa LoginPage
               if (snapshot.hasData) {
-                return const LoginPage();
+                return const HomeScreen(); 
               }
               return const LoginPage();
             },

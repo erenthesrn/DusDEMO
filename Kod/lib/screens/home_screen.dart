@@ -51,6 +51,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _listenToUserData(); 
     MistakesService.syncLocalToFirebase();
+    _runMigration();
+  }
+
+  Future<void> _runMigration() async {
+    await MistakesService.syncLocalToFirebase();
   }
 
   @override

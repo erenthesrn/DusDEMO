@@ -409,6 +409,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   score: score,
                   correctCount: correct,
                   wrongCount: wrong,
+                  emptyCount: empty,
                   userAnswers: _userAnswers,
                 );
               }

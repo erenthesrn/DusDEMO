@@ -68,27 +68,48 @@ class QuizService {
   }
 
   // 🔥 Sonuç Kaydetme (Hem Local Hem Firebase Destekli)
-  // Not: Asıl detaylı kaydı ResultScreen yapıyor ama burayı "Hızlı Kayıt" veya "Yedek" olarak tutabiliriz.
-  static Future<void> saveQuizResult({
-    required String topic,
-    required int testNo,
-    required int score,
-    required int correctCount,
-    required int wrongCount,
-    List<int?>? userAnswers,
-  }) async {
-    // 1. Yerel Kayıt (Hız ve çevrimdışı kullanım için)
-    final prefs = await SharedPreferences.getInstance();
-    List<String> results = prefs.getStringList('quiz_results') ?? [];
-    
-    String resultJson = "$topic|$testNo|$score|$correctCount|$wrongCount|${DateTime.now()}";
-    results.add(resultJson);
-    await prefs.setStringList('quiz_results', results);
+static Future<void> saveQuizResult({
+  required String topic,
+  required int testNo,
+  required int score,
+  required int correctCount,
+  required int wrongCount,
+  required int emptyCount, // Bunu da eklemen iyi olur
+  List<int?>? userAnswers,
+}) async {
+  User? user = FirebaseAuth.instance.currentUser;
 
-    // Not: Firebase kaydını zaten ResultScreen içinde yapıyoruz.
-    // O yüzden buraya tekrar Firebase kodu yazmaya gerek yok, 
-    // çift kayıt (duplicate) oluşmasın.
+  // 1. Yerel Kayıt (Hız ve çevrimdışı kullanım için)
+  final prefs = await SharedPreferences.getInstance();
+  List<String> results = prefs.getStringList('quiz_results') ?? [];
+  String resultJson = "$topic|$testNo|$score|$correctCount|$wrongCount|${DateTime.now()}";
+  results.add(resultJson);
+  await prefs.setStringList('quiz_results', results);
+
+  // 2. 🔥 Firebase Kaydı (Burayı mutlaka açmalısın)
+  if (user != null) {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('results')
+          .add({
+        'topic': topic,
+        'testNo': testNo,
+        'score': score,
+        'correct': correctCount,
+        'wrong': wrongCount,
+        'empty': emptyCount,
+        'timestamp': FieldValue.serverTimestamp(),
+        // İstersen cevap anahtarını da tutabilirsin (analiz için)
+        // 'userAnswers': userAnswers 
+      });
+    } catch (e) {
+      print("Firebase kayıt hatası: $e");
+      // Hata olursa yerel kayıttan sonra senkronize edecek bir yapı kurabilirsin.
+    }
   }
+}
   
   // Test İstatistiklerini Getir (Opsiyonel - Test Listesinde Puan Göstermek İstersen)
   static Future<Map<int, int>> getTestScores(String topic) async {
