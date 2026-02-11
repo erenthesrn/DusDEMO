@@ -130,9 +130,8 @@ static Future<void> saveQuizResult({
         'correct': correctCount,
         'wrong': wrongCount,
         'empty': emptyCount,
-        'timestamp': FieldValue.serverTimestamp(),
-        // İstersen cevap anahtarını da tutabilirsin (analiz için)
-        // 'userAnswers': userAnswers 
+        'timestamp': FieldValue.serverTimestamp(),        
+        'userAnswers': userAnswers 
       });
     } catch (e) {
       print("Firebase kayıt hatası: $e");

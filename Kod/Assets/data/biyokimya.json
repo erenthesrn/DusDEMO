@@ -3,12 +3,12 @@
     "id": 101,
     "test_no": 1,
     "level": "Kolay",
-    "question": "Aşağıdaki amino asitlerden hangisi optikçe aktif değildir (asimetrik karbon atomu içermez)?",
+    "question": "DENEME SORUSU Aşağıdaki amino asitlerden hangisi optikçe aktif değildir (asimetrik karbon atomu içermez)?",
     "options": [
-      "A) Alanin",
+      "A) DENEME Alanin",
       "B) Glisin",
       "C) Valin",
-      "D) Lösin",
+      "D) DENEME Lösin",
       "E) Prolin"
     ],
     "answer_index": 1

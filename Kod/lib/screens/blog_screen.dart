@@ -1,8 +1,7 @@
-// lib/screens/blog_screen.dart
-
 import 'dart:ui'; // Blur efekti için gerekli
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/question_uploader.dart'; // Uploader servisini import ettik
 
 // -----------------------------------------------------------------------------
 // 1. ADIM: VERİ MODELİ (AYNEN KORUNDU)
@@ -77,6 +76,35 @@ class _BlogScreenState extends State<BlogScreen> {
           ),
         ),
         actions: [
+          // 🔥 YENİ EKLENEN: SORU YÜKLEME BUTONU (GELİŞTİRİCİ İÇİN)
+          IconButton(
+            tooltip: "Soruları Firebase'e Yükle",
+            icon: Icon(Icons.cloud_upload_rounded, color: Colors.orange), // Dikkat çeksin diye turuncu yaptım
+            onPressed: () async {
+              // 1. Kullanıcıya bilgi ver
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Soru yükleme işlemi başladı... Lütfen bekleyin. ⏳"),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+
+              // 2. Yüklemeyi başlat
+              await QuestionUploader.uploadQuestions();
+
+              // 3. İşlem bitince onay ver
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    backgroundColor: Colors.green,
+                    content: Text("Tüm sorular başarıyla yüklendi/güncellendi! ✅"),
+                  ),
+                );
+              }
+            },
+          ),
+
+          // Mevcut Sıralama Butonu
           IconButton(
             onPressed: () => setState(() => _isDescending = !_isDescending),
             icon: Icon(
@@ -226,7 +254,7 @@ class _BlogScreenState extends State<BlogScreen> {
                   ? Center(child: Icon(Icons.image_not_supported, color: subTitleColor)) 
                   : null,
               ),
-              // Resim Üzeri Gradient (Yazı okunurluğu için opsiyonel, şık durur)
+              // Resim Üzeri Gradient
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -239,7 +267,7 @@ class _BlogScreenState extends State<BlogScreen> {
                   ),
                 ),
               ),
-              // Kategori Etiketi (Resmin üzerinde)
+              // Kategori Etiketi
               Positioned(
                 top: 16,
                 left: 16,
