@@ -4,102 +4,143 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class QuestionUploader {
   
-  // Bu fonksiyonu istediğin kadar çalıştırabilirsin.
-  // Var olanı günceller, olmayanı ekler.
+  // 🔥 GÜVENLİ SAYI DÖNÜŞTÜRÜCÜ
+  static int _safeInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  // 🔥 GÜVENLİ STRING DÖNÜŞTÜRÜCÜ
+  static String _safeString(dynamic value) {
+    if (value == null) return "";
+    return value.toString();
+  }
+
+  // 🔥 GÜVENLİ LİSTE DÖNÜŞTÜRÜCÜ
+  static List<String> _safeList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) return value.map((e) => e.toString()).toList();
+    return [];
+  }
+
   static Future<void> uploadQuestions() async {
     final firestore = FirebaseFirestore.instance;
     
-    // JSON dosya isimlerin (Assets/data/ altındakiler)
+    // JSON dosya isimlerin
     final files = [
       'anatomi', 
       'biyokimya', 
-      'biyoloji',
       'cerrahi', 
-      'endo',
-      'farma',
-      'fizyoloji',
-      'histoloji',
-      'mikrobiyo',
-      'orto',
-      'patoloji',
-      'pedo',
       'perio', 
       'protetik',
-      'radyoloji',
-      'resto',
-
-      // Diğer dersleri buraya ekle...
+      // Diğer dosyalarını buraya ekle...
     ];
 
-    print("Yükleme başladı... 🚀");
+    print("🚀 Yükleme (Düz Liste Modu) Başlatılıyor...");
 
     for (String lesson in files) {
       try {
-        // 1. JSON Oku
-        String jsonString = await rootBundle.loadString('Assets/data/$lesson.json');
-        var jsonData = jsonDecode(jsonString);
+        String path = 'Assets/data/$lesson.json'; 
+        String jsonString = await rootBundle.loadString(path);
         
-        List<dynamic> tests = [];
-        
-        // JSON yapısı bazen Map {"Anatomi": []} bazen direkt List [] olabiliyor diye kontrol:
-        if (jsonData is Map) {
-          tests = jsonData.values.first; // Map ise ilk değer listedir
-        } else if (jsonData is List) {
-          tests = jsonData;
+        // JSON'ı çöz
+        var decodedData = jsonDecode(jsonString);
+        List<dynamic> questionList = [];
+
+        // Eğer JSON direkt bir liste ise (Attığın örnekteki gibi): [ {...}, {...} ]
+        if (decodedData is List) {
+          questionList = decodedData;
+        } 
+        // Eğer Map ise ve içinde liste varsa: { "questions": [...] }
+        else if (decodedData is Map) {
+           // Bazen 'Anatomi' key'i altında olabilir, bazen direkt values olabilir.
+           // Güvenli yöntem: Map'in içindeki ilk listeyi bul.
+           for (var value in decodedData.values) {
+             if (value is List) {
+               questionList = value;
+               break;
+             }
+           }
         }
 
-        // 2. Batch (Toplu İşlem) Hazırla
+        if (questionList.isEmpty) {
+          print("⚠️ $lesson içeriği boş veya format anlaşılamadı.");
+          continue;
+        }
+
+        // --- BATCH İŞLEMİ ---
         WriteBatch batch = firestore.batch();
-        int counter = 0; // Batch limiti (500) için sayaç
+        int counter = 0;
+        int totalLoaded = 0;
 
-        for (var test in tests) {
-          int testNo = test['testNo'];
-          List<dynamic> questions = test['questions'];
+        // Her test grubu için soru indeksini sıfırdan başlatmak adına bir sayaç haritası tutalım
+        // Örn: Test 1 -> 5. soruda, Test 2 -> 0. soruda
+        Map<int, int> testQuestionCounter = {};
 
-          for (int i = 0; i < questions.length; i++) {
-            var q = questions[i];
-            
-            // 🔥 KRİTİK NOKTA: ID'yi biz belirliyoruz.
-            // Örn: anatomi_1_0 (Anatomi, 1. Test, 0. Soru)
-            String docId = "${lesson.toLowerCase()}_${testNo}_$i";
-            
-            DocumentReference docRef = firestore.collection('questions').doc(docId);
-            
-            // Veriyi hazırla
-            Map<String, dynamic> data = {
-              'topic': lesson, // Dosya adını konu olarak kullanıyoruz
-              'testNo': testNo,
-              'questionIndex': i, // Sırasını kaybetmemek için
-              'question': q['question'],
-              'options': q['options'],
-              'correctIndex': q['correctOption'],
-              'explanation': q['explanation'] ?? "",
-              // İleride "image_url" falan eklemek istersen JSON'a koyup buraya eklemen yeterli
-            };
+        for (var item in questionList) {
+          // --- VERİ EŞLEŞTİRME (Senin JSON Formatına Göre) ---
+          // JSON: "test_no" -> Bizim: testNo
+          // JSON: "answer_index" -> Bizim: correctIndex
+          
+          int testNo = _safeInt(item['test_no'] ?? item['testNo']); // İkisini de dener
+          int qIdFromJs = _safeInt(item['id']); // JSON'daki ID'yi alalım
+          
+          // Bu test numarası için soru sırasını belirle
+          if (!testQuestionCounter.containsKey(testNo)) {
+            testQuestionCounter[testNo] = 0;
+          }
+          int currentQuestionIndex = testQuestionCounter[testNo]!;
+          testQuestionCounter[testNo] = currentQuestionIndex + 1;
 
-            // set(data) -> Varsa ezer, yoksa yazar.
-            batch.set(docRef, data); 
+          // DOKÜMAN ID: ders_testNo_soruSırası (Benzersiz olması için)
+          String docId = "${lesson.toLowerCase()}_${testNo}_$currentQuestionIndex";
+          
+          DocumentReference docRef = firestore.collection('questions').doc(docId);
+          
+          Map<String, dynamic> data = {
+            'topic': lesson.toLowerCase(),
+            'testNo': testNo,
+            'questionIndex': currentQuestionIndex,
+            'question': _safeString(item['question']),
+            'options': _safeList(item['options']),
+            // Senin JSON'da "answer_index" var, eski kod "correctOption" arıyordu.
+            'correctIndex': _safeInt(item['answer_index'] ?? item['correctOption']), 
+            'explanation': _safeString(item['explanation']), // Eğer yoksa boş atar
+            'level': _safeString(item['level']), // Zorluk seviyesini de alalım
+            'original_id': qIdFromJs, // Takip için JSON'daki ID'yi de saklayalım
+          };
 
-            counter++;
-            
-            // Firebase limiti: Her 500 işlemde bir gönderip sıfırla
-            if (counter == 450) {
-              await batch.commit();
-              batch = firestore.batch();
-              counter = 0;
-              print("$lesson için ara kayıt yapıldı...");
-            }
+          batch.set(docRef, data);
+          
+          counter++;
+          totalLoaded++;
+
+          // Firebase limiti (500 işlem)
+          if (counter >= 450) {
+            await batch.commit();
+            batch = firestore.batch();
+            counter = 0;
+            print("⏳ $lesson yükleniyor...");
           }
         }
-        
-        // Kalan son partiyi gönder
-        await batch.commit();
-        print("$lesson dersi başarıyla yüklendi/güncellendi! ✅");
+
+        // Kalanları gönder
+        if (counter > 0) {
+          await batch.commit();
+        }
+
+        print("✅ $lesson : $totalLoaded soru yüklendi!");
 
       } catch (e) {
-        print("HATA ($lesson): $e ❌");
+        if (e.toString().contains("Unable to load asset")) {
+           print("❌ DOSYA YOK: $lesson.json");
+        } else {
+           print("❌ HATA ($lesson): $e");
+        }
       }
     }
-    print("TÜM İŞLEMLER BİTTİ! 🎉");
+    print("🎉 SONUÇ: Veritabanı doldu! Şimdi Quiz ekranını dene. 🎉");
   }
 }

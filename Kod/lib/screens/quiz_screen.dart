@@ -1,5 +1,3 @@
-// lib/screens/quiz_screen.dart
-
 import 'dart:async';
 import 'dart:convert'; 
 import 'package:flutter/material.dart';
@@ -52,6 +50,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int _seconds = 0;
   bool _isTimerRunning = false;
 
+  
   @override
   void initState() {
     super.initState();
@@ -72,7 +71,7 @@ class _QuizScreenState extends State<QuizScreen> {
         _initializeTimer(); 
       }
     } else {
-      // Normal Mod: JSON'dan yükle
+      // Normal Mod: Firebase'den yükle (Eskiden JSON idi)
       _loadQuestions(); 
     }
   }
@@ -83,60 +82,90 @@ class _QuizScreenState extends State<QuizScreen> {
     super.dispose();
   }
 
-  // --- JSON YÜKLEME ---
+  // --- 🔥 GÜNCELLENEN: FIREBASE'DEN SORU ÇEKME ---
   Future<void> _loadQuestions() async {
     try {
-      // Dosya eşleştirme
-      String jsonFileName = "anatomi.json"; 
-      String topicName = widget.topic ?? "";
-
-      if (topicName.contains("Anatomi")) jsonFileName = "anatomi.json";
-      else if (topicName.contains("Biyokimya")) jsonFileName = "biyokimya.json";
-      else if (topicName.contains("Fizyoloji")) jsonFileName = "fizyoloji.json";
-      else if (topicName.contains("Histoloji")) jsonFileName = "histoloji.json";
-      else if (topicName.contains("Farmakoloji")) jsonFileName = "farmakoloji.json";
-      else if (topicName.contains("Patoloji")) jsonFileName = "patoloji.json";
-      else if (topicName.contains("Mikrobiyoloji")) jsonFileName = "mikrobiyoloji.json";
-      else if (topicName.contains("Biyoloji ve Genetik")) jsonFileName = "biyoloji.json";
-      else if (topicName.contains("Ağız, Diş ve Çene Cerrahisi")) jsonFileName = "cerrahi.json";
-      else if (topicName.contains("Endodonti")) jsonFileName = "endo.json";
-      else if (topicName.contains("Periodontoloji")) jsonFileName = "perio.json";
-      else if (topicName.contains("Ortodonti")) jsonFileName = "orto.json";
-      else if (topicName.contains("Pedodonti")) jsonFileName = "pedo.json";
-      else if (topicName.contains("Protetik")) jsonFileName = "protetik.json";
-      else if (topicName.contains("Radyoloji")) jsonFileName = "radyoloji.json";
-      else if (topicName.contains("Restoratif")) jsonFileName = "resto.json";
+      // JSON dosya adı yerine "Konu Adı" (topic) ile sorgu yapacağız.
+      // Soru yükleyici servisinde dosya adlarını topic olarak kullanmıştık (anatomi, biyokimya...)
+      String dbTopic = "";
       
-      String data = await DefaultAssetBundle.of(context).loadString('assets/data/$jsonFileName');
-      List<dynamic> jsonList = json.decode(data);
-
-      List<Question> allQuestions = jsonList.map((x) => Question.fromJson(x)).toList();
-      List<Question> filteredQuestions = [];
-
-      if (widget.isTrial) {
-        filteredQuestions = allQuestions; // Deneme ise hepsi
-      } else {
-        if (widget.testNo != null) {
-           filteredQuestions = allQuestions.where((q) => q.testNo == widget.testNo).toList();
-        } else {
-           filteredQuestions = allQuestions;
-        }
+      // Gelen topic ismini veritabanındaki formata çeviriyoruz
+      if (widget.topic != null) {
+        String t = widget.topic!;
+        if (t.contains("Anatomi")) dbTopic = "anatomi";
+        else if (t.contains("Biyokimya")) dbTopic = "biyokimya";
+        else if (t.contains("Fizyoloji")) dbTopic = "fizyoloji";
+        else if (t.contains("Histoloji")) dbTopic = "histoloji";
+        else if (t.contains("Farmakoloji")) dbTopic = "farmakoloji";
+        else if (t.contains("Patoloji")) dbTopic = "patoloji";
+        else if (t.contains("Mikrobiyoloji")) dbTopic = "mikrobiyoloji";
+        else if (t.contains("Biyoloji")) dbTopic = "biyoloji";
+        else if (t.contains("Cerrahi")) dbTopic = "cerrahi";
+        else if (t.contains("Endodonti")) dbTopic = "endo"; // Dosya adı endo.json idi
+        else if (t.contains("Perio")) dbTopic = "perio";
+        else if (t.contains("Orto")) dbTopic = "orto";
+        else if (t.contains("Pedo")) dbTopic = "pedo";
+        else if (t.contains("Protetik")) dbTopic = "protetik";
+        else if (t.contains("Radyoloji")) dbTopic = "radyoloji";
+        else if (t.contains("Restoratif")) dbTopic = "resto";
+        else dbTopic = t.toLowerCase(); // Varsayılan
       }
+
+      QuerySnapshot snapshot;
+
+      // 1. Firebase Sorgusu
+      if (widget.isTrial) {
+        // Deneme Modu: O konudan rastgele veya limitli soru çek (Şimdilik ilk 50)
+        // İleride burayı random hale getirebiliriz.
+        snapshot = await FirebaseFirestore.instance
+            .collection('questions')
+            .where('topic', isEqualTo: dbTopic)
+            .limit(50) 
+            .get();
+      } else {
+        // Test Modu: Konu ve Test No'ya göre çek
+        snapshot = await FirebaseFirestore.instance
+            .collection('questions')
+            .where('topic', isEqualTo: dbTopic)
+            .where('testNo', isEqualTo: widget.testNo)
+            .orderBy('questionIndex') // Sıralı gelmesi önemli
+            .get();
+      }
+
+      // 2. Veriyi Modele Çevir
+      List<Question> fetchedQuestions = snapshot.docs.map((doc) {
+        var data = doc.data() as Map<String, dynamic>;
+        // Question.fromJson veya fromMap kullanabiliriz.
+        // Senin Question modelinde 'id' alanı olmayabilir, onu manuel ekleyebiliriz.
+        return Question(
+          id: data['questionIndex'] ?? 0, // veya doc.id kullanabilirsin ama int istiyorsa index ver
+          question: data['question'] ?? "",
+          options: List<String>.from(data['options'] ?? []),
+          answerIndex: data['correctIndex'] ?? 0,
+          explanation: data['explanation'] ?? "",
+          testNo: data['testNo'] ?? 0,
+          level: data['topic'] ?? "Genel",
+        );
+      }).toList();
 
       if (mounted) {
         setState(() {
-          _questions = filteredQuestions;
+          _questions = fetchedQuestions;
           _userAnswers = List.filled(_questions.length, null); 
           _isLoading = false; 
         });
 
         if (_questions.isNotEmpty) {
            _initializeTimer();
+        } else {
+          // Eğer Firebase boş dönerse (henüz yüklenmemişse) fallback olarak JSON deneyebilirsin
+          // Ama şimdilik "Soru bulunamadı" desin.
+          debugPrint("Firebase'den soru gelmedi: $dbTopic - Test: ${widget.testNo}");
         }
       }
 
     } catch (e) {
-      debugPrint("Dosya Hatası: $e");
+      debugPrint("Firebase Soru Yükleme Hatası: $e");
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -339,7 +368,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
                 if (answer == null) {
                   empty++;
-                  // 🔥 DÜZELTME 1: Boş soruları da yanlışlar listesine ekle
+                  // Yanlışlara ekle (Boşlar da yanlış sayılır)
                   if (!isMistakeReview) {
                     wrongQuestionsToSave.add({
                       'id': _questions[i].id,
@@ -347,7 +376,9 @@ class _QuizScreenState extends State<QuizScreen> {
                       'options': _questions[i].options,
                       'correctIndex': _questions[i].answerIndex,
                       'userIndex': -1, // -1 Boş olduğunu belirtir
-                      'subject': widget.topic ?? "Genel",
+                      'topic': widget.topic ?? "Genel", // subject yerine topic kullan
+                      'testNo': widget.testNo ?? 0,
+                      'questionIndex': _questions[i].id, // id olarak index kullanıyoruz
                       'explanation': _questions[i].explanation,
                       'date': DateTime.now().toIso8601String(),
                     });
@@ -371,7 +402,9 @@ class _QuizScreenState extends State<QuizScreen> {
                       'options': _questions[i].options,
                       'correctIndex': _questions[i].answerIndex,
                       'userIndex': answer,
-                      'subject': widget.topic ?? "Genel",
+                      'topic': widget.topic ?? "Genel",
+                      'testNo': widget.testNo ?? 0,
+                      'questionIndex': _questions[i].id,
                       'explanation': _questions[i].explanation,
                       'date': DateTime.now().toIso8601String(),
                     });
@@ -388,6 +421,8 @@ class _QuizScreenState extends State<QuizScreen> {
               
               // 1. Yeni Yanlışları Ekle (Boşlar dahil)
               if (wrongQuestionsToSave.isNotEmpty) {
+                // Burada id'leri int olarak değil, doküman oluşturmak için Map olarak gönderiyoruz
+                // MistakesService'i güncellememiz gerekebilir ama şimdilik mevcut yapıyı koruyalım
                 await MistakesService.addMistakes(wrongQuestionsToSave);
               }
               
@@ -401,7 +436,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 await _updateFirebaseStats(correct, wrong + empty); 
               }
 
-              // 🔥 DÜZELTME 2: Test listesinde tik çıkması için YEREL kaydı yap
+              // Test sonucunu kaydet
               if (!widget.isTrial && widget.topic != null && widget.testNo != null) {
                 await QuizService.saveQuizResult(
                   topic: widget.topic!,
@@ -431,7 +466,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                   ),
                 );
-                // 🔥 DÜZELTME 3: Sonuç ekranından dönünce 'true' döndür (Listeyi yenilemesi için)
+                // Listeyi yenilemesi için dönüşte true gönder
                 if(mounted){
                   Navigator.pop(context, true);
                 }
@@ -449,7 +484,7 @@ class _QuizScreenState extends State<QuizScreen> {
     if (user == null) return;
 
     try {
-      // Not: Asıl detaylı kaydı ResultScreen yapıyor. 
+      // İstatistik servisi buraya eklenebilir
     } catch (e) {
       debugPrint("İstatistik hatası: $e");
     }
@@ -544,7 +579,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // --- 🔥 TEMA AYARLARI ---
     final isDarkMode = ThemeProvider.instance.isDarkMode;
     
     // Renkler
@@ -770,7 +804,7 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
   
-  // 🔥 ŞIK BUTONU OLUŞTURUCU (RENKLENDİRME MANTIĞI BURADA)
+  // 🔥 ŞIK BUTONU OLUŞTURUCU (RENKLENDİRME MANTIĞI)
   Widget _buildOptionButton(int index, String optionText, bool isDarkMode) {
     int? userAnswer = _userAnswers[_currentQuestionIndex];
     int correctAnswer = _questions[_currentQuestionIndex].answerIndex;
