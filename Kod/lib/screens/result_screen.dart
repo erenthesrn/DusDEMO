@@ -7,6 +7,7 @@ import '../models/question_model.dart';
 import 'quiz_screen.dart';
 import '../services/achievement_service.dart';
 import '../services/theme_provider.dart'; // 🔥 TEMA KONTROLÜ
+import '../services/mistakes_service.dart'; // ✅ EKLENDİ: Yanlışları kaydetmek için şart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -42,7 +43,7 @@ class _ResultScreenState extends State<ResultScreen> {
   void initState() {
     super.initState();
     
-    // Rozet ve İstatistik işlemleri
+    // Rozet ve İstatistik işlemleri (Ekran çizildikten hemen sonra çalışır)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AchievementService.instance.incrementCategory(
         context, 
@@ -56,77 +57,120 @@ class _ResultScreenState extends State<ResultScreen> {
         100, 
         widget.correctCount 
       );
+      
+      // Firebase Güncellemelerini Başlat
       _updateStreakAndStats();
     });
   }
 
-  // 🔥 İSTATİSTİK GÜNCELLEME FONKSİYONU
-// lib/screens/result_screen.dart içinde _updateStreakAndStats fonksiyonunu bul ve bununla değiştir:
+  // 🔥 İSTATİSTİK GÜNCELLEME VE YANLIŞLARI KAYDETME FONKSİYONU
+  Future<void> _updateStreakAndStats() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-Future<void> _updateStreakAndStats() async {
-  User? user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
-
-  final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-  
-  try {
-    DocumentSnapshot doc = await userDocRef.get();
-    if (!doc.exists) return;
+    final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
     
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    
-    // Tarih Formatı: YYYY-MM-DD (Grafikler için bu format şart)
-    String today = DateTime.now().toIso8601String().split('T')[0];
-    
-    String lastStudyDate = data['lastStudyDate'] ?? ""; 
-    int currentStreak = data['streak'] ?? 0;
-    int newStreak = currentStreak;
+    try {
+      DocumentSnapshot doc = await userDocRef.get();
+      if (!doc.exists) return;
+      
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      
+      // Tarih Formatı: YYYY-MM-DD (Grafikler için bu format şart)
+      String today = DateTime.now().toIso8601String().split('T')[0];
+      
+      String lastStudyDate = data['lastStudyDate'] ?? ""; 
+      int currentStreak = data['streak'] ?? 0;
+      int newStreak = currentStreak;
 
-    // --- Streak Mantığı (Senin yazdığın kısım aynen kalıyor) ---
-    if (lastStudyDate != today) {
-      if (lastStudyDate.isNotEmpty) {
-         DateTime dateToday = DateTime.parse(today);
-         DateTime dateLast = DateTime.parse(lastStudyDate);
-         int diff = dateToday.difference(dateLast).inDays;
+      // --- Streak (Seri) Mantığı ---
+      if (lastStudyDate != today) {
+        if (lastStudyDate.isNotEmpty) {
+           DateTime dateToday = DateTime.parse(today);
+           DateTime dateLast = DateTime.parse(lastStudyDate);
+           int diff = dateToday.difference(dateLast).inDays;
 
-         if (diff == 1) {
-           newStreak++; 
-         } else {
-           newStreak = 1; 
-         }
-      } else {
-        newStreak = 1; 
+           if (diff == 1) {
+             newStreak++; 
+           } else {
+             newStreak = 1; 
+           }
+        } else {
+          newStreak = 1; 
+        }
       }
+
+      // --- ÖNEMLİ KISIM BAŞLIYOR: Veritabanı Güncelleme ---
+      
+      // Konu ismini güvenli hale getir
+      String safeTopic = widget.topic.trim(); 
+
+      await userDocRef.update({
+        // 1. Genel Veriler
+        'lastStudyDate': today,           
+        'streak': newStreak,              
+        'totalSolved': FieldValue.increment(widget.questions.length), 
+        'totalCorrect': FieldValue.increment(widget.correctCount),    
+        'dailySolved': FieldValue.increment(widget.questions.length), 
+
+        // 2. HAFTALIK GRAFİK İÇİN (stats.dailyHistory.2024-02-10)
+        'stats.dailyHistory.$today': FieldValue.increment(widget.questions.length),
+
+        // 3. DERS BAZLI GRAFİK İÇİN (stats.subjects.Anatomi.total / correct)
+        'stats.subjects.$safeTopic.total': FieldValue.increment(widget.questions.length),
+        'stats.subjects.$safeTopic.correct': FieldValue.increment(widget.correctCount),
+      });
+
+      // 4. DETAYLI SINAV SONUCUNU KAYDET (Analiz ekranı burayı okuyor)
+      String uniqueResultId = "${widget.topic}_${widget.testNo}_${DateTime.now().millisecondsSinceEpoch}";
+      
+      await userDocRef.collection('results').doc(uniqueResultId).set({
+        'topic': widget.topic,
+        'testNo': widget.testNo,
+        'score': widget.score,
+        'correct': widget.correctCount,
+        'wrong': widget.wrongCount,
+        'empty': widget.emptyCount,
+        'total': widget.questions.length,
+        'user_answers': widget.userAnswers, // Cevap anahtarını da kaydedelim
+        'date': DateTime.now().toIso8601String(), // String formatında tarih
+        'timestamp': FieldValue.serverTimestamp(), // Sıralama için server saati
+      });
+
+      // 5. YANLIŞLARI BULUT "MISTAKES" KOLEKSİYONUNA EKLE
+      List<Map<String, dynamic>> mistakesToSave = [];
+      
+      for (int i = 0; i < widget.questions.length; i++) {
+        // Yanlış cevaplanmış soruları tespit et
+        bool isWrong = widget.userAnswers[i] != null && widget.userAnswers[i] != widget.questions[i].answerIndex;
+        
+        if (isWrong) {
+          var q = widget.questions[i];
+          mistakesToSave.add({
+            'id': q.id,
+            'question': q.question,
+            'options': q.options,
+            'correctIndex': q.answerIndex,
+            'userIndex': widget.userAnswers[i], // İşaretlediği yanlış şık
+            'explanation': q.explanation,
+            'subject': widget.topic, 
+            'date': DateTime.now().toIso8601String(),
+          });
+        }
+      }
+
+      if (mistakesToSave.isNotEmpty) {
+        // Yeni yazdığımız servisi kullanarak toplu ekleme yap
+        await MistakesService.addMistakes(mistakesToSave);
+        debugPrint("✅ ${mistakesToSave.length} yanlış soru Firebase'e kaydedildi.");
+      }
+      
+      debugPrint("🔥 Firebase Tam Güncellendi: Streak, Grafik, Sonuçlar ve Yanlışlar işlendi.");
+
+    } catch (e) {
+      debugPrint("❌ İstatistik güncelleme hatası: $e");
     }
-
-    // --- ÖNEMLİ KISIM BAŞLIYOR: Veritabanı Güncelleme ---
-    
-    // Konu ismini güvenli hale getir (Örn: "Klinik Bilimler" -> Firestore'da sorun çıkarmaz ama yine de trim yapalım)
-    String safeTopic = widget.topic.trim(); 
-
-    await userDocRef.update({
-      // 1. Genel Veriler
-      'lastStudyDate': today,           
-      'streak': newStreak,              
-      'totalSolved': FieldValue.increment(widget.questions.length), 
-      'totalCorrect': FieldValue.increment(widget.correctCount),    
-      // dailySolved sadece o gün için sayaçtır, gece sıfırlanması gerekir ama şimdilik kalsın.
-      'dailySolved': FieldValue.increment(widget.questions.length), 
-
-      // 2. HAFTALIK GRAFİK İÇİN (stats.dailyHistory.2024-02-10)
-      'stats.dailyHistory.$today': FieldValue.increment(widget.questions.length),
-
-      // 3. DERS BAZLI GRAFİK İÇİN (stats.subjects.Anatomi.total / correct)
-      'stats.subjects.$safeTopic.total': FieldValue.increment(widget.questions.length),
-      'stats.subjects.$safeTopic.correct': FieldValue.increment(widget.correctCount),
-    });
-    
-    debugPrint("🔥 Firebase Tam Güncellendi: Streak, Grafik ve Ders Verileri işlendi.");
-
-  } catch (e) {
-    debugPrint("Hata oluştu: $e");
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +199,7 @@ Future<void> _updateStreakAndStats() async {
 
     return Scaffold(
       backgroundColor: Colors.transparent, 
-      extendBodyBehindAppBar: true, // ✅ GÖVDE APPBAR ARKASINA TAŞAR (Sorun Çözümü)
+      extendBodyBehindAppBar: true, 
       appBar: AppBar(
         title: Text("Sınav Sonucu 📝", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: textColor)),
         backgroundColor: Colors.transparent,
@@ -166,10 +210,10 @@ Future<void> _updateStreakAndStats() async {
       ),
       body: Stack(
         children: [
-          background, // 1. Katman: Zemin (Ekranı tam kaplar)
+          background, // 1. Katman: Zemin 
 
           // 2. Katman: İçerik
-          SafeArea( // ✅ İÇERİĞİ KORUR
+          SafeArea( 
             child: Column(
               children: [
                 // --- ÖZET KARTI ---
@@ -261,7 +305,7 @@ Future<void> _updateStreakAndStats() async {
 
                       return InkWell(
                         onTap: () {
-                          // İnceleme moduna git
+                          // İnceleme moduna git (QuizScreen güncellendiği için çalışır)
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -270,9 +314,9 @@ Future<void> _updateStreakAndStats() async {
                                 topic: widget.topic,
                                 testNo: widget.testNo,
                                 questions: widget.questions,
-                                userAnswers: widget.userAnswers,
-                                initialIndex: index,
-                                isReviewMode: true,
+                                userAnswers: widget.userAnswers, // 🔥 Cevaplar gidiyor
+                                initialIndex: index, // 🔥 Tıklanan soru açılacak
+                                isReviewMode: true, // 🔥 İnceleme modu aktif
                               ),
                             ),
                           );

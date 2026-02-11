@@ -50,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _listenToUserData(); 
+    MistakesService.syncLocalToFirebase();
   }
 
   @override

@@ -1,49 +1,130 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MistakesService {
-  static const String _storageKey = 'user_mistakes';
+  static const String _localKey = 'user_mistakes';
 
-  static Future<List<Map<String, dynamic>>> getMistakes() async {
+  // 🔥 1. ADIM: YEREL VERİYİ BULUTA TAŞIMA (MIGRATION)
+  // Bu fonksiyonu uygulamanın açılışında (örneğin Home veya Splash ekranında) bir kez çağıracağız.
+  static Future<void> syncLocalToFirebase() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     final prefs = await SharedPreferences.getInstance();
-    final String? mistakesString = prefs.getString(_storageKey);
-    if (mistakesString != null) {
-      return List<Map<String, dynamic>>.from(json.decode(mistakesString));
+    final String? localString = prefs.getString(_localKey);
+
+    if (localString != null) {
+      List<dynamic> localList = json.decode(localString);
+      if (localList.isEmpty) return;
+
+      final batch = FirebaseFirestore.instance.batch();
+      final collectionRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('mistakes');
+
+      for (var item in localList) {
+        // Her yanlış soru için benzersiz bir ID oluşturuyoruz (soruId_dersAdi)
+        String docId = "${item['id']}_${item['subject']}".replaceAll(" ", "_");
+        var docRef = collectionRef.doc(docId);
+        
+        // Veriyi Firebase formatına uygun hale getirip ekliyoruz
+        batch.set(docRef, {
+          ...item,
+          'syncedAt': FieldValue.serverTimestamp(),
+          'userId': user.uid,
+        });
+      }
+
+      await batch.commit();
+      
+      // Başarılı olursa yerel veriyi temizle
+      await prefs.remove(_localKey);
+      print("✅ Yerel 'Yanlışlarım' verisi Firebase'e taşındı ve cihazdan silindi.");
     }
-    return [];
   }
 
-  // --- EKLENECEK KISIM 1: Toplu Ekleme ---
+  // --- GETİRME (FIREBASE) ---
+  static Future<List<Map<String, dynamic>>> getMistakes() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
+
+    try {
+      var snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('mistakes')
+          .orderBy('date', descending: true) // En yeni en üstte
+          .get();
+
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      print("Hata (Get Mistakes): $e");
+      return [];
+    }
+  }
+
+  // --- EKLEME (FIREBASE) ---
   static Future<void> addMistakes(List<Map<String, dynamic>> newMistakes) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<Map<String, dynamic>> currentMistakes = await getMistakes();
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+    final collectionRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('mistakes');
 
     for (var mistake in newMistakes) {
-      // Varsa eskisini çıkar (güncelleyip sona ekleyeceğiz)
-      currentMistakes.removeWhere((item) => 
-          item['id'] == mistake['id'] && item['subject'] == mistake['subject']);
-      currentMistakes.add(mistake);
+      // Soru ID ve Ders adı ile unique bir key oluşturuyoruz ki aynı soruyu 2 kere eklemesin
+      String docId = "${mistake['id']}_${mistake['subject']}".replaceAll(" ", "_");
+      var docRef = collectionRef.doc(docId);
+
+      batch.set(docRef, {
+        ...mistake,
+        'userId': user.uid,
+        'addedAt': FieldValue.serverTimestamp(), // Ne zaman eklendi?
+      });
     }
-    await prefs.setString(_storageKey, json.encode(currentMistakes));
+
+    await batch.commit();
   }
 
-  // --- EKLENECEK KISIM 2: Toplu Silme ---
+  // --- TEKLİ SİLME (FIREBASE) ---
+  static Future<void> removeMistake(int id, String subject) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    String docId = "${id}_$subject".replaceAll(" ", "_");
+    
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('mistakes')
+        .doc(docId)
+        .delete();
+  }
+
+  // --- 🔥 EKSİK OLAN KISIM: TOPLU SİLME (FIREBASE) ---
   static Future<void> removeMistakeList(List<Map<String, dynamic>> itemsToRemove) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<Map<String, dynamic>> currentMistakes = await getMistakes();
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+    final collection = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('mistakes');
 
     for (var item in itemsToRemove) {
-      currentMistakes.removeWhere((m) => 
-          m['id'] == item['id'] && m['subject'] == item['subject']);
+      // Silinecek doküman ID'sini oluştur
+      String docId = "${item['id']}_${item['subject']}".replaceAll(" ", "_");
+      batch.delete(collection.doc(docId));
     }
-    await prefs.setString(_storageKey, json.encode(currentMistakes));
-  }
 
-  // Tekli silme (Zaten varsa kalabilir)
-  static Future<void> removeMistake(int id, String subject) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<Map<String, dynamic>> currentMistakes = await getMistakes();
-    currentMistakes.removeWhere((item) => item['id'] == id && item['subject'] == subject);
-    await prefs.setString(_storageKey, json.encode(currentMistakes));
+    // İşlemi onayla
+    await batch.commit();
   }
 }

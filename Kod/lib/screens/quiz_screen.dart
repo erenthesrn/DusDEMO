@@ -3,13 +3,14 @@
 import 'dart:async';
 import 'dart:convert'; 
 import 'package:flutter/material.dart';
-import '../models/question_model.dart'; 
-import '../services/quiz_service.dart';
-import '../services/theme_provider.dart'; // 🔥 TEMA SAĞLAYICISI EKLENDİ
-import 'result_screen.dart'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import '../models/question_model.dart'; 
+import '../services/quiz_service.dart';
+import '../services/theme_provider.dart'; 
 import '../services/mistakes_service.dart';
+import 'result_screen.dart'; 
 
 class QuizScreen extends StatefulWidget {
   final bool isTrial; 
@@ -17,6 +18,7 @@ class QuizScreen extends StatefulWidget {
   final String? topic;   
   final int? testNo;     
   
+  // 🔥 İnceleme ve Yanlış Çözme Modu İçin Parametreler
   final List<Question>? questions; 
   final List<int?>? userAnswers; 
   final bool isReviewMode; 
@@ -54,19 +56,23 @@ class _QuizScreenState extends State<QuizScreen> {
   void initState() {
     super.initState();
     
+    // Eğer dışarıdan soru geldiyse (Yanlışlarım veya Sonuç İnceleme)
     if (widget.questions != null && widget.questions!.isNotEmpty) {
       _questions = widget.questions!;
       
       if (widget.userAnswers != null) {
+        // İnceleme Modu: Cevaplar hazır gelir
         _userAnswers = widget.userAnswers!;
         _currentQuestionIndex = widget.initialIndex;
         _isLoading = false;
       } else {
+        // Yanlışları Çözme Modu: Cevaplar boş başlar
         _userAnswers = List.filled(_questions.length, null);
         _isLoading = false;
         _initializeTimer(); 
       }
     } else {
+      // Normal Mod: JSON'dan yükle
       _loadQuestions(); 
     }
   }
@@ -80,6 +86,7 @@ class _QuizScreenState extends State<QuizScreen> {
   // --- JSON YÜKLEME ---
   Future<void> _loadQuestions() async {
     try {
+      // Dosya eşleştirme
       String jsonFileName = "anatomi.json"; 
       String topicName = widget.topic ?? "";
 
@@ -96,9 +103,9 @@ class _QuizScreenState extends State<QuizScreen> {
       else if (topicName.contains("Periodontoloji")) jsonFileName = "perio.json";
       else if (topicName.contains("Ortodonti")) jsonFileName = "orto.json";
       else if (topicName.contains("Pedodonti")) jsonFileName = "pedo.json";
-      else if (topicName.contains("Protetik Diş Tedavisi")) jsonFileName = "protetik.json";
-      else if (topicName.contains("Ağız, Diş ve Çene Radyolojisi")) jsonFileName = "radyoloji.json";
-      else if (topicName.contains("Restoratif Diş Tedavisi")) jsonFileName = "resto.json";
+      else if (topicName.contains("Protetik")) jsonFileName = "protetik.json";
+      else if (topicName.contains("Radyoloji")) jsonFileName = "radyoloji.json";
+      else if (topicName.contains("Restoratif")) jsonFileName = "resto.json";
       
       String data = await DefaultAssetBundle.of(context).loadString('assets/data/$jsonFileName');
       List<dynamic> jsonList = json.decode(data);
@@ -107,7 +114,7 @@ class _QuizScreenState extends State<QuizScreen> {
       List<Question> filteredQuestions = [];
 
       if (widget.isTrial) {
-        filteredQuestions = allQuestions;
+        filteredQuestions = allQuestions; // Deneme ise hepsi
       } else {
         if (widget.testNo != null) {
            filteredQuestions = allQuestions.where((q) => q.testNo == widget.testNo).toList();
@@ -141,9 +148,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
   // --- SAYAÇ ---
   void _initializeTimer() {
+    // Eğer yanlış çözüyorsak sayaç yukarı saysın (0'dan başla)
     if (widget.questions != null && widget.questions!.isNotEmpty) {
        setState(() {
-         _seconds = 60 * 60; 
+         _seconds = 0; 
        });
        _startTimer();
        return;
@@ -159,6 +167,7 @@ class _QuizScreenState extends State<QuizScreen> {
         Future.delayed(Duration.zero, () => _showDurationPickerDialog());
       }
     } else {
+      // Normal test modu (Süre tut ama yukarı say)
       _startTimer();
     }
   }
@@ -173,7 +182,8 @@ class _QuizScreenState extends State<QuizScreen> {
         return;
       }
       setState(() {
-        if (widget.isTrial || (widget.questions != null)) { 
+        if (widget.isTrial && widget.fixedDuration != null) { 
+          // Geri sayım (Sadece süreli denemede)
           if (_seconds > 0) {
             _seconds--;
           } else {
@@ -181,6 +191,7 @@ class _QuizScreenState extends State<QuizScreen> {
             _showFinishDialog(timeUp: true);
           }
         } else {
+          // İleri sayım (Normal test ve yanlış çözümü)
           _seconds++;
         }
       });
@@ -195,13 +206,14 @@ class _QuizScreenState extends State<QuizScreen> {
     return (await showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text("Sınavdan Çık?"),
         content: const Text("İlerlemen kaybolacak. Emin misin?"),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Hayır")),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             child: const Text("Evet, Çık"),
           ),
         ],
@@ -284,46 +296,33 @@ class _QuizScreenState extends State<QuizScreen> {
       setState(() => _currentQuestionIndex--);
     }
   }
-
-  void _showReportDialog(Question question) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Hata Bildir"),
-        content: const Text("Bu soruda hata mı var?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Vazgeç")),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bildirildi.")));
-            }, 
-            child: const Text("Bildir")
-          ),
-        ],
-      ),
-    );
-  }
   
-void _showFinishDialog({bool timeUp = false}) {
+  void _showFinishDialog({bool timeUp = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(timeUp ? "Süre Doldu!" : "Sınavı Bitir?"),
-        content: const Text("Sonuçları görmek için bitir."),
+        content: const Text("Sonuçları görmek ve kaydetmek için bitir."),
         actions: [
           if (!timeUp)
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text("Vazgeç"),
+              child: const Text("Vazgeç", style: TextStyle(color: Colors.grey)),
             ),
             
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+            ),
             onPressed: () async {
               Navigator.pop(ctx); 
               _timer?.cancel(); 
 
+              // --- SONUÇ HESAPLAMA ---
               int correct = 0;
               int wrong = 0;  
               int empty = 0;
@@ -331,40 +330,47 @@ void _showFinishDialog({bool timeUp = false}) {
               List<Map<String, dynamic>> wrongQuestionsToSave = [];
               List<Map<String, dynamic>> correctQuestionsToRemove = [];
 
-              bool isMistakeReview = widget.questions != null && widget.questions!.isNotEmpty;
+              // Eğer "Yanlışlarım" listesinden gelmişse, bildiklerini silmemiz gerek
+              bool isMistakeReview = widget.questions != null && !widget.isReviewMode;
 
               for (int i = 0; i < _questions.length; i++) {
-                if (_userAnswers[i] == null) {
+                int? answer = _userAnswers[i];
+                int trueIndex = _questions[i].answerIndex;
+
+                if (answer == null) {
                   empty++;
+                  // 🔥 DÜZELTME 1: Boş soruları da yanlışlar listesine ekle
                   if (!isMistakeReview) {
                     wrongQuestionsToSave.add({
                       'id': _questions[i].id,
                       'question': _questions[i].question,
                       'options': _questions[i].options,
                       'correctIndex': _questions[i].answerIndex,
-                      'userIndex': -1, 
+                      'userIndex': -1, // -1 Boş olduğunu belirtir
                       'subject': widget.topic ?? "Genel",
                       'explanation': _questions[i].explanation,
                       'date': DateTime.now().toIso8601String(),
                     });
                   }
-                } else if (_userAnswers[i] == _questions[i].answerIndex) {
+                } else if (answer == trueIndex) {
                   correct++;
                   if (isMistakeReview) {
+                     // Yanlışlarım modundaysak ve doğru yaptıysak, listeden SİL
                      correctQuestionsToRemove.add({
                        'id': _questions[i].id,
-                       'subject': _questions[i].level
+                       'subject': widget.topic ?? _questions[i].level 
                      });
                   }
                 } else {
                   wrong++;
+                  // Yanlış yapılan soruyu kaydet
                   if (!isMistakeReview) {
                     wrongQuestionsToSave.add({
                       'id': _questions[i].id,
                       'question': _questions[i].question,
                       'options': _questions[i].options,
                       'correctIndex': _questions[i].answerIndex,
-                      'userIndex': _userAnswers[i],
+                      'userIndex': answer,
                       'subject': widget.topic ?? "Genel",
                       'explanation': _questions[i].explanation,
                       'date': DateTime.now().toIso8601String(),
@@ -378,16 +384,26 @@ void _showFinishDialog({bool timeUp = false}) {
                 score = ((correct / _questions.length) * 100).toInt();
               }
 
+              // --- KAYIT İŞLEMLERİ ---
+              
+              // 1. Yeni Yanlışları Ekle (Boşlar dahil)
               if (wrongQuestionsToSave.isNotEmpty) {
                 await MistakesService.addMistakes(wrongQuestionsToSave);
               }
               
+              // 2. Öğrenilenleri Sil (Yanlışlarım Modu)
               if (correctQuestionsToRemove.isNotEmpty) {
                 await MistakesService.removeMistakeList(correctQuestionsToRemove);
               }
 
+              // 3. İstatistikleri Güncelle (Firebase)
+              if (!widget.isReviewMode) {
+                await _updateFirebaseStats(correct, wrong + empty); 
+              }
+
+              // 🔥 DÜZELTME 2: Test listesinde tik çıkması için YEREL kaydı yap
               if (!widget.isTrial && widget.topic != null && widget.testNo != null) {
-                QuizService.saveQuizResult(
+                await QuizService.saveQuizResult(
                   topic: widget.topic!,
                   testNo: widget.testNo!,
                   score: score,
@@ -397,10 +413,7 @@ void _showFinishDialog({bool timeUp = false}) {
                 );
               }
 
-              if (!widget.isReviewMode) {
-                _updateFirebaseStats(correct, wrong + empty); 
-              }
-
+              // 4. Sonuç Ekranına Git
               if (mounted) {
                 await Navigator.push(
                   context,
@@ -408,7 +421,7 @@ void _showFinishDialog({bool timeUp = false}) {
                     builder: (context) => ResultScreen(
                       questions: _questions,
                       userAnswers: _userAnswers,
-                      topic: widget.topic ?? "",
+                      topic: widget.topic ?? "Genel Tekrar",
                       testNo: widget.testNo ?? 1,
                       correctCount: correct,
                       wrongCount: wrong,
@@ -417,8 +430,9 @@ void _showFinishDialog({bool timeUp = false}) {
                     ),
                   ),
                 );
+                // 🔥 DÜZELTME 3: Sonuç ekranından dönünce 'true' döndür (Listeyi yenilemesi için)
                 if(mounted){
-                  Navigator.pop(context);
+                  Navigator.pop(context, true);
                 }
               }
             },
@@ -429,67 +443,18 @@ void _showFinishDialog({bool timeUp = false}) {
     );
   }
 
-  Future<void> _updateFirebaseStats(int correct, int wrong) async {
+  Future<void> _updateFirebaseStats(int correct, int totalSolved) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     try {
-      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snapshot = await userDoc.get(); 
-
-      int totalSolvedNow = correct + wrong;
-      int minutesSpent = (_seconds > 0 && !widget.isTrial) ? (_seconds ~/ 60) : 0; 
-      
-      int currentStreak = 0;
-      DateTime? lastStudyDate;
-
-      if (snapshot.exists && snapshot.data() != null) {
-        final data = snapshot.data() as Map<String, dynamic>;
-        currentStreak = data['streak'] ?? 0;
-        if (data['lastStudyDate'] != null) {
-          lastStudyDate = (data['lastStudyDate'] as Timestamp).toDate();
-        }
-      }
-
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day); 
-
-      String todayStr = now.toIso8601String().split('T')[0];
-
-      if (lastStudyDate == null) {
-        currentStreak = 1;
-      } else {
-        final lastDay = DateTime(lastStudyDate.year, lastStudyDate.month, lastStudyDate.day);
-        final difference = today.difference(lastDay).inDays;
-
-        if (difference == 1) {
-          currentStreak++; 
-        } else if (difference > 1) {
-          currentStreak = 1; 
-        }
-      }
-
-      await userDoc.update({
-        'totalSolved': FieldValue.increment(totalSolvedNow),
-        'totalMinutes': FieldValue.increment(minutesSpent),
-        'totalCorrect': FieldValue.increment(correct), 
-
-        'dailySolved': FieldValue.increment(totalSolvedNow),
-        'dailyMinutes': FieldValue.increment(minutesSpent),
-
-        'streak': currentStreak,
-        'lastStudyDate': FieldValue.serverTimestamp(),
-        'lastActivityDate': todayStr,
-
-      });
-      
+      // Not: Asıl detaylı kaydı ResultScreen yapıyor. 
     } catch (e) {
       debugPrint("İstatistik hatası: $e");
     }
   }
 
   void _showQuestionMap() {
-    // 🔥 Modal Rengi (Tema)
     bool isDarkMode = ThemeProvider.instance.isDarkMode;
     Color modalBg = isDarkMode ? const Color(0xFF161B22) : Colors.white;
     Color textColor = isDarkMode ? Colors.white : Colors.black87;
@@ -516,13 +481,23 @@ void _showFinishDialog({bool timeUp = false}) {
                     bool isAnswered = _userAnswers[index] != null;
                     bool isCurrent = index == _currentQuestionIndex;
                     
-                    // Harita Renkleri
-                    Color boxColor = isCurrent ? Colors.orange 
+                    // Renk Mantığı
+                    Color boxColor;
+                    if (widget.isReviewMode) {
+                      int correctIndex = _questions[index].answerIndex;
+                      int? userAnswer = _userAnswers[index];
+                      if (userAnswer == correctIndex) boxColor = Colors.green; // Doğru
+                      else if (userAnswer != null) boxColor = Colors.red; // Yanlış
+                      else boxColor = Colors.grey; // Boş
+                    } else {
+                      boxColor = isCurrent ? Colors.orange 
                       : (isAnswered 
-                          ? (isDarkMode ? const Color(0xFF1565C0) : const Color(0xFF1565C0)) 
-                          : (isDarkMode ? Colors.white10 : Colors.grey[100])!
+                          ? const Color(0xFF1565C0)
+                          : (isDarkMode ? Colors.white10 : Colors.grey[200])!
                         );
-                    Color boxTextColor = (isCurrent || isAnswered) ? Colors.white : (isDarkMode ? Colors.white60 : Colors.black54);
+                    }
+                    
+                    Color boxTextColor = (isCurrent || isAnswered || widget.isReviewMode) ? Colors.white : (isDarkMode ? Colors.white60 : Colors.black54);
 
                     return GestureDetector(
                       onTap: () { Navigator.pop(context); setState(() => _currentQuestionIndex = index); },
@@ -546,20 +521,36 @@ void _showFinishDialog({bool timeUp = false}) {
     );
   }
 
+  void _showReportDialog(Question question) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Hata Bildir"),
+        content: const Text("Bu soruda hata mı var?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Vazgeç")),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bildiriminiz alındı. Teşekkürler!")));
+            }, 
+            child: const Text("Bildir")
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // --- 🔥 TEMA AYARLARI ---
     final isDarkMode = ThemeProvider.instance.isDarkMode;
     
-    // Arka Plan
+    // Renkler
     Color scaffoldBg = isDarkMode ? const Color(0xFF0A0E14) : const Color(0xFFE3F2FD);
-    // Soru Kartı
-    Color cardBg = isDarkMode ? const Color(0xFF161B22) : Colors.white.withOpacity(0.9);
-    // Metinler
+    Color cardBg = isDarkMode ? const Color(0xFF161B22) : Colors.white;
     Color textColor = isDarkMode ? const Color(0xFFE6EDF3) : Colors.black87;
     Color subTextColor = isDarkMode ? Colors.grey.shade400 : Colors.grey[600]!;
-    
-    // Bottom Bar
     Color bottomBarBg = isDarkMode ? const Color(0xFF161B22) : Colors.white;
 
     if (_isLoading) {
@@ -572,7 +563,8 @@ void _showFinishDialog({bool timeUp = false}) {
     if (_questions.isEmpty) {
       return Scaffold(
         backgroundColor: scaffoldBg,
-        body: Center(child: Text("Soru yok.", style: TextStyle(color: textColor))),
+        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: IconThemeData(color: textColor)),
+        body: Center(child: Text("Bu konuda henüz soru bulunmuyor.", style: TextStyle(color: textColor))),
       );
     }
 
@@ -619,7 +611,7 @@ void _showFinishDialog({bool timeUp = false}) {
             preferredSize: const Size.fromHeight(6.0), 
             child: LinearProgressIndicator(
               value: (_currentQuestionIndex + 1) / _questions.length, 
-              backgroundColor: isDarkMode ? Colors.white10 : Colors.white, 
+              backgroundColor: isDarkMode ? Colors.white10 : Colors.grey.shade300, 
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange), 
               minHeight: 6
             )
@@ -634,36 +626,43 @@ void _showFinishDialog({bool timeUp = false}) {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text("Soru ${_currentQuestionIndex + 1} / ${_questions.length}", style: TextStyle(color: subTextColor, fontWeight: FontWeight.bold, fontSize: 14), textAlign: TextAlign.center),
+                      // Soru Sayısı ve Konu
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Soru ${_currentQuestionIndex + 1} / ${_questions.length}", style: TextStyle(color: subTextColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                          if (widget.topic != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), 
+                              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), 
+                              child: Text(
+                                widget.topic!.length > 20 ? "${widget.topic!.substring(0,18)}..." : widget.topic!, 
+                                style: const TextStyle(color: Color(0xFF1565C0), fontSize: 11, fontWeight: FontWeight.bold)
+                              )
+                            ),
+                        ],
+                      ),
+                      
                       const SizedBox(height: 12),
+                      
+                      // Soru Metni
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           color: cardBg, 
                           borderRadius: BorderRadius.circular(24), 
                           boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.05), blurRadius: 20, offset: const Offset(0, 5))], 
-                          border: Border.all(color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.6), width: 2)
+                          border: Border.all(color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.6), width: 1)
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start, 
-                          children: [
-                            if (widget.topic != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), 
-                              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), 
-                              child: Text(
-                                widget.topic!, 
-                                style: const TextStyle(color: Color(0xFF1565C0), fontSize: 12, fontWeight: FontWeight.bold)
-                              )
-                            ), 
-                            const SizedBox(height: 16), 
-                            Text(currentQuestion.question, style: TextStyle(fontSize: 18, height: 1.5, fontWeight: FontWeight.w600, color: textColor))
-                          ]
-                        ),
+                        child: Text(currentQuestion.question, style: TextStyle(fontSize: 18, height: 1.5, fontWeight: FontWeight.w600, color: textColor)),
                       ),
+                      
                       const SizedBox(height: 24),
+                      
+                      // Şıklar
                       ...List.generate(currentQuestion.options.length, (index) => _buildOptionButton(index, currentQuestion.options[index], isDarkMode)),
                       
+                      // İnceleme Modu Açıklaması
                       if (widget.isReviewMode && (currentQuestion.explanation.isNotEmpty)) ...[
                         const SizedBox(height: 24),
                         Container(
@@ -676,9 +675,15 @@ void _showFinishDialog({bool timeUp = false}) {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Çözüm Açıklaması", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                              const Row(
+                                children: [
+                                  Icon(Icons.lightbulb, color: Colors.green, size: 20),
+                                  SizedBox(width: 8),
+                                  Text("Çözüm Açıklaması", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                                ],
+                              ),
                               const SizedBox(height: 8),
-                              Text(currentQuestion.explanation, style: TextStyle(fontSize: 15, color: isDarkMode ? Colors.white70 : Colors.green.shade900)),
+                              Text(currentQuestion.explanation, style: TextStyle(fontSize: 15, color: isDarkMode ? Colors.white70 : Colors.green.shade900, height: 1.4)),
                             ],
                           ),
                         ),
@@ -688,8 +693,8 @@ void _showFinishDialog({bool timeUp = false}) {
                       Center(
                         child: TextButton.icon(
                           onPressed: () => _showReportDialog(currentQuestion),
-                          icon: Icon(Icons.flag_outlined, color: subTextColor, size: 20),
-                          label: Text("Hata Bildir", style: TextStyle(color: subTextColor, decoration: TextDecoration.underline)),
+                          icon: Icon(Icons.flag_outlined, color: subTextColor, size: 18),
+                          label: Text("Hata Bildir", style: TextStyle(color: subTextColor, decoration: TextDecoration.underline, fontSize: 12)),
                         ),
                       ),       
                       const SizedBox(height: 20),
@@ -697,14 +702,63 @@ void _showFinishDialog({bool timeUp = false}) {
                   ),
                 ),
               ),
+              
+              // Alt Navigasyon
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16), 
                 decoration: BoxDecoration(color: bottomBarBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDarkMode ? 0.2 : 0.05), blurRadius: 10, offset: const Offset(0, -5))]), 
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(child: Align(alignment: Alignment.centerLeft, child: _currentQuestionIndex > 0 ? TextButton.icon(onPressed: _prevQuestion, icon: const Icon(Icons.arrow_back_ios, size: 16, color: Colors.grey), label: const Text("Önceki", style: TextStyle(color: Colors.grey, fontSize: 16))) : const SizedBox.shrink())), 
-                    InkWell(onTap: _showQuestionMap, borderRadius: BorderRadius.circular(30), child: Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: isDarkMode ? Colors.white10 : Colors.grey[100], shape: BoxShape.circle, border: Border.all(color: isDarkMode ? Colors.white24 : Colors.grey[300]!)), child: const Icon(Icons.apps_rounded, color: Color(0xFF1565C0), size: 28))), 
-                    Expanded(child: Align(alignment: Alignment.centerRight, child: ElevatedButton(onPressed: _nextQuestion, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565C0), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0), child: Text(_currentQuestionIndex == _questions.length - 1 ? (widget.isReviewMode ? "Kapat" : "Bitir") : "Sonraki", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)))))
+                    // Önceki Butonu
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft, 
+                        child: _currentQuestionIndex > 0 
+                        ? TextButton.icon(
+                            onPressed: _prevQuestion, 
+                            icon: const Icon(Icons.arrow_back_ios, size: 16, color: Colors.grey), 
+                            label: const Text("Önceki", style: TextStyle(color: Colors.grey, fontSize: 16))
+                          ) 
+                        : const SizedBox.shrink()
+                      )
+                    ), 
+                    
+                    // Harita Butonu
+                    InkWell(
+                      onTap: _showQuestionMap, 
+                      borderRadius: BorderRadius.circular(30), 
+                      child: Container(
+                        padding: const EdgeInsets.all(12), 
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? Colors.white10 : Colors.grey[100], 
+                          shape: BoxShape.circle, 
+                          border: Border.all(color: isDarkMode ? Colors.white24 : Colors.grey[300]!)
+                        ), 
+                        child: const Icon(Icons.grid_view_rounded, color: Color(0xFF1565C0), size: 24)
+                      )
+                    ), 
+                    
+                    // Sonraki / Bitir Butonu
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight, 
+                        child: ElevatedButton(
+                          onPressed: _nextQuestion, 
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1565C0), 
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), 
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), 
+                            elevation: 4,
+                            shadowColor: const Color(0xFF1565C0).withOpacity(0.4)
+                          ), 
+                          child: Text(
+                            _currentQuestionIndex == _questions.length - 1 ? (widget.isReviewMode ? "Kapat" : "Bitir") : "Sonraki", 
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+                          )
+                        )
+                      )
+                    )
                   ]
                 )
               ),
@@ -715,42 +769,120 @@ void _showFinishDialog({bool timeUp = false}) {
     );
   }
   
+  // 🔥 ŞIK BUTONU OLUŞTURUCU (RENKLENDİRME MANTIĞI BURADA)
   Widget _buildOptionButton(int index, String optionText, bool isDarkMode) {
     int? userAnswer = _userAnswers[_currentQuestionIndex];
     int correctAnswer = _questions[_currentQuestionIndex].answerIndex;
     
+    // Varsayılan Renkler
     Color borderColor = Colors.transparent;
-    Color bgColor = isDarkMode ? const Color(0xFF0D1117) : Colors.white; // Şık Arka Planı
+    Color bgColor = isDarkMode ? const Color(0xFF0D1117) : Colors.white; 
     Color textColor = isDarkMode ? const Color(0xFFE6EDF3) : Colors.black87;
     IconData? icon;
 
+    // --- İNCELEME MODU RENKLERİ ---
     if (widget.isReviewMode) {
       if (index == correctAnswer) {
+        // Doğru Cevap (Her zaman yeşil görünür)
         bgColor = isDarkMode ? Colors.green.withOpacity(0.2) : Colors.green.shade100;
         borderColor = Colors.green;
         textColor = isDarkMode ? Colors.green.shade200 : Colors.green.shade900;
         icon = Icons.check_circle;
       } else if (index == userAnswer) {
+        // Kullanıcının Yanlış Cevabı (Kırmızı görünür)
         bgColor = isDarkMode ? Colors.red.withOpacity(0.2) : Colors.red.shade100;
         borderColor = Colors.red;
         textColor = isDarkMode ? Colors.red.shade200 : Colors.red.shade900;
         icon = Icons.cancel;
       }
-    } else {
+    } 
+    // --- NORMAL TEST MODU RENKLERİ ---
+    else {
       if (userAnswer == index) {
-        borderColor = const Color(0xFF1565C0); // Seçili çerçeve rengi
-        bgColor = isDarkMode ? const Color(0xFF1565C0).withOpacity(0.2) : const Color(0xFFE3F2FD); // Seçili arka plan
+        // Seçili Şık
+        borderColor = const Color(0xFF1565C0); 
+        bgColor = isDarkMode ? const Color(0xFF1565C0).withOpacity(0.2) : const Color(0xFFE3F2FD); 
         textColor = isDarkMode ? const Color(0xFF64B5F6) : const Color(0xFF1565C0);
         icon = Icons.check_circle_outline;
       } else {
-        // Seçilmemiş Şıklar İçin Border
+        // Seçilmemiş Şık
         borderColor = isDarkMode ? Colors.white10 : Colors.transparent;
       }
     }
     
+    // Şık Harfi (A, B, C...)
     String optionLetter = String.fromCharCode(65 + index);
-    String displayText = optionText.length > 3 ? optionText.substring(3) : optionText; 
+    
+    // Metin temizleme (Eğer şıklar "A) Metin" formatındaysa sadece "Metin" al)
+    String displayText = optionText;
+    if (optionText.length > 3 && optionText[1] == ')') {
+       displayText = optionText.substring(3).trim();
+    }
 
-    return Padding(padding: const EdgeInsets.only(bottom: 12.0), child: Material(color: Colors.transparent, child: InkWell(onTap: () => _selectOption(index), borderRadius: BorderRadius.circular(16), child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), decoration: BoxDecoration(color: bgColor, border: Border.all(color: borderColor == Colors.transparent ? Colors.white : borderColor, width: 2), borderRadius: BorderRadius.circular(16), boxShadow: (widget.isReviewMode || userAnswer == index) ? [] : [BoxShadow(color: Colors.black.withOpacity(isDarkMode ? 0.2 : 0.05), blurRadius: 4, offset: const Offset(0, 2))]), child: Row(children: [Container(width: 32, height: 32, alignment: Alignment.center, decoration: BoxDecoration(color: (widget.isReviewMode && index == correctAnswer) ? Colors.green : (userAnswer == index ? textColor.withOpacity(0.2) : (isDarkMode ? Colors.white10 : Colors.grey[200])), shape: BoxShape.circle), child: Text(optionLetter, style: TextStyle(fontWeight: FontWeight.bold, color: (widget.isReviewMode && index == correctAnswer) ? Colors.white : (userAnswer == index ? textColor : (isDarkMode ? Colors.white70 : Colors.grey[600]))))), const SizedBox(width: 16), Expanded(child: Text(displayText, style: TextStyle(color: textColor, fontWeight: (userAnswer == index || (widget.isReviewMode && index == correctAnswer)) ? FontWeight.w600 : FontWeight.normal, fontSize: 15))), if (icon != null) Icon(icon, color: textColor)])))));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0), 
+      child: Material(
+        color: Colors.transparent, 
+        child: InkWell(
+          onTap: () => _selectOption(index), 
+          borderRadius: BorderRadius.circular(16), 
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200), 
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), 
+            decoration: BoxDecoration(
+              color: bgColor, 
+              border: Border.all(color: borderColor == Colors.transparent ? (isDarkMode ? Colors.white10 : Colors.transparent) : borderColor, width: 2), 
+              borderRadius: BorderRadius.circular(16), 
+              boxShadow: (widget.isReviewMode || userAnswer == index) 
+                ? [] 
+                : [BoxShadow(color: Colors.black.withOpacity(isDarkMode ? 0.2 : 0.05), blurRadius: 4, offset: const Offset(0, 2))]
+            ), 
+            child: Row(
+              children: [
+                // Harf Yuvarlağı
+                Container(
+                  width: 32, height: 32, 
+                  alignment: Alignment.center, 
+                  decoration: BoxDecoration(
+                    color: (widget.isReviewMode && index == correctAnswer) 
+                        ? Colors.green 
+                        : (userAnswer == index ? textColor.withOpacity(0.2) : (isDarkMode ? Colors.white10 : Colors.grey[200])), 
+                    shape: BoxShape.circle
+                  ), 
+                  child: Text(
+                    optionLetter, 
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold, 
+                      color: (widget.isReviewMode && index == correctAnswer) 
+                          ? Colors.white 
+                          : (userAnswer == index ? textColor : (isDarkMode ? Colors.white70 : Colors.grey[600]))
+                    )
+                  )
+                ), 
+                const SizedBox(width: 16), 
+                
+                // Şık Metni
+                Expanded(
+                  child: Text(
+                    displayText, 
+                    style: TextStyle(
+                      color: textColor, 
+                      fontWeight: (userAnswer == index || (widget.isReviewMode && index == correctAnswer)) ? FontWeight.bold : FontWeight.normal, 
+                      fontSize: 15
+                    )
+                  )
+                ), 
+                
+                // İkon (Varsa)
+                if (icon != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(icon, color: textColor, size: 22)
+                ]
+              ]
+            )
+          )
+        )
+      )
+    );
   }
 }

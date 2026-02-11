@@ -407,21 +407,36 @@ class _TestListScreenState extends State<TestListScreen> with SingleTickerProvid
     );
   }
 
-  Future<void> _navigateToReview(int testNumber) async {
-    showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator()));
+Future<void> _navigateToReview(int testNumber) async {
+    // Yükleniyor dialogu
+    showDialog(
+      context: context, 
+      barrierDismissible: false, 
+      builder: (c) => const Center(child: CircularProgressIndicator())
+    );
 
     try {
+      // 1. Firebase'den Sonucu Çek
+      // DÜZELTME: widget.topicName yerine widget.topic kullanıyoruz.
       Map<String, dynamic>? result = await QuizService.getQuizResult(widget.topic, testNumber);
+      
       if (result == null || result['user_answers'] == null) {
-        if (mounted) Navigator.pop(context); 
+        if (mounted) Navigator.pop(context); // Dialogu kapat
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Bu testin detaylı verisi bulunamadı."))
+        );
         return;
       }
 
+      // 2. Cevapları Listeye Çevir
       List<dynamic> rawList = result['user_answers'];
       List<int?> userAnswers = rawList.map((e) => e as int?).toList();
 
+      // 3. Doğru JSON Dosyasını Bul (Genişletilmiş Liste)
       String jsonFileName = "";
-      String t = widget.topic;
+      String t = widget.topic; // Konu ismini al
+      
+      // Eşleşmeleri kontrol et
       if (t.contains("Anatomi")) jsonFileName = "anatomi.json";
       else if (t.contains("Biyokimya")) jsonFileName = "biyokimya.json";
       else if (t.contains("Fizyoloji")) jsonFileName = "fizyoloji.json";
@@ -429,15 +444,32 @@ class _TestListScreenState extends State<TestListScreen> with SingleTickerProvid
       else if (t.contains("Farmakoloji")) jsonFileName = "farmakoloji.json";
       else if (t.contains("Patoloji")) jsonFileName = "patoloji.json";
       else if (t.contains("Mikrobiyoloji")) jsonFileName = "mikrobiyoloji.json";
-      
+      else if (t.contains("Biyoloji")) jsonFileName = "biyoloji.json";
+      else if (t.contains("Cerrahi")) jsonFileName = "cerrahi.json";
+      else if (t.contains("Endodonti")) jsonFileName = "endo.json";
+      else if (t.contains("Periodontoloji")) jsonFileName = "perio.json";
+      else if (t.contains("Ortodonti")) jsonFileName = "orto.json";
+      else if (t.contains("Pedodonti")) jsonFileName = "pedo.json";
+      else if (t.contains("Protetik")) jsonFileName = "protetik.json";
+      else if (t.contains("Radyoloji")) jsonFileName = "radyoloji.json";
+      else if (t.contains("Restoratif")) jsonFileName = "resto.json";
+      else {
+        // Eğer eşleşme yoksa varsayılan veya hata
+        if (mounted) Navigator.pop(context);
+        return;
+      }
+
+      // 4. Soruları JSON'dan Yükle
       String data = await DefaultAssetBundle.of(context).loadString('assets/data/$jsonFileName');
       List<dynamic> jsonList = json.decode(data);
       List<Question> allQuestions = jsonList.map((x) => Question.fromJson(x)).toList();
       
+      // Sadece ilgili testin sorularını filtrele
       List<Question> testQuestions = allQuestions.where((q) => q.testNo == testNumber).toList();
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context); // Loading'i kapat
 
+      // 5. Sonuç Ekranına Git
       if (mounted) {
         Navigator.push(
           context,
@@ -445,7 +477,7 @@ class _TestListScreenState extends State<TestListScreen> with SingleTickerProvid
             builder: (context) => ResultScreen(
               questions: testQuestions,
               userAnswers: userAnswers,
-              topic: widget.topic,
+              topic: widget.topic, // DÜZELTME: widget.topic kullanıldı
               testNo: testNumber,
               correctCount: int.parse(result['correct'].toString()),
               wrongCount: int.parse(result['wrong'].toString()),
@@ -460,5 +492,4 @@ class _TestListScreenState extends State<TestListScreen> with SingleTickerProvid
       if (mounted) Navigator.pop(context);
       debugPrint("İnceleme hatası: $e");
     }
-  }
-}
+  }}

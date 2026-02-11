@@ -48,8 +48,14 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
     _loadData();
   }
 
+  // 🔥 ARTIK FIREBASE'DEN ÇEKİYORUZ
   Future<void> _loadData() async {
+    // Önce varsa eski veriyi taşı (Migration) - Bunu splash screen'e de koyabilirsin ama garanti olsun
+    await MistakesService.syncLocalToFirebase();
+    
+    // Sonra Firebase'den güncel listeyi çek
     var data = await MistakesService.getMistakes();
+    
     if (mounted) {
       setState(() {
         _allMistakes = data;
@@ -60,7 +66,7 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // Tema kontrolü (Dark Mode mu?)
+    // Tema kontrolü
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Hangi dersten kaç yanlış var hesapla
@@ -75,21 +81,15 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
     sortedSubjects.sort((a, b) {
       int countA = counts[a] ?? 0;
       int countB = counts[b] ?? 0;
-
-      // Kural 1: Yanlış sayısı ÇOK olan en üste (Descending)
       if (countB != countA) {
-        return countB.compareTo(countA);
-      }
-      // Kural 2: Yanlış sayıları EŞİT ise alfabetik sırala (Ascending)
-      else {
-        return a.compareTo(b);
+        return countB.compareTo(countA); // Çoktan aza
+      } else {
+        return a.compareTo(b); // Alfabetik
       }
     });
 
     return Scaffold(
-      // Dark mode ise koyu, değilse senin seçtiğin teal tonu
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFE0F2F1),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFE0F2F1),
       appBar: AppBar(
         title: Text("Eksiklerimi Kapat",
             style: TextStyle(
@@ -98,50 +98,64 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
+        actions: [
+          // Manuel Yenileme Butonu
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() => _isLoading = true);
+              _loadData();
+            },
+          )
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _allMistakes.isEmpty
               ? _buildEmptyState(isDark)
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      // ÜST KART: TOPLAM YANLIŞ
-                      _buildSummaryCard(_allMistakes.length),
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        // ÜST KART: TOPLAM YANLIŞ
+                        _buildSummaryCard(_allMistakes.length),
 
-                      const SizedBox(height: 24),
-                      Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text("Derslere Göre Hatalar (Çoktan Aza)",
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      isDark ? Colors.white : Colors.black87))),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 24),
+                        Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text("Derslere Göre Hatalar (Çoktan Aza)",
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        isDark ? Colors.white : Colors.black87))),
+                        const SizedBox(height: 12),
 
-                      // GRID MENU
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 1.3,
+                        // GRID MENU
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 1.3,
+                          ),
+                          itemCount: sortedSubjects.length,
+                          itemBuilder: (context, index) {
+                            String subject = sortedSubjects[index];
+                            int count = counts[subject] ?? 0;
+                            return _buildSubjectCard(
+                                subject, count, _subjectColors[subject]!, isDark);
+                          },
                         ),
-                        itemCount: sortedSubjects.length,
-                        itemBuilder: (context, index) {
-                          String subject = sortedSubjects[index];
-                          int count = counts[subject] ?? 0; // O dersin yanlış sayısı
-                          return _buildSubjectCard(
-                              subject, count, _subjectColors[subject]!, isDark);
-                        },
-                      ),
-                      const SizedBox(height: 40),
-                    ],
+                        const SizedBox(height: 40),
+                      ],
+                    ),
                   ),
                 ),
     );
@@ -193,13 +207,14 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           ElevatedButton(
-            onPressed: () {
-              // Tüm yanlışları aç
-              Navigator.push(
+            onPressed: () async {
+              // Tüm yanlışları aç ve dönünce listeyi yenile
+              await Navigator.push(
                   context,
                   MaterialPageRoute(
                       builder: (context) => MistakesListScreen(
                           mistakes: _allMistakes, title: "Tüm Yanlışlarım")));
+              _loadData(); // Dönüşte güncelle
             },
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white, foregroundColor: Colors.teal),
@@ -213,16 +228,16 @@ class _MistakesDashboardState extends State<MistakesDashboard> {
   Widget _buildSubjectCard(
       String subject, int count, Color color, bool isDark) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (count > 0) {
-          // Sadece o dersin yanlışlarını filtrele ve gönder
           var filtered =
               _allMistakes.where((m) => m['subject'] == subject).toList();
-          Navigator.push(
+          await Navigator.push(
               context,
               MaterialPageRoute(
                   builder: (context) =>
                       MistakesListScreen(mistakes: filtered, title: subject)));
+          _loadData(); // Dönüşte güncelle
         } else {
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -305,20 +320,17 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
       switch (_currentSort) {
         case SortOption.newest:
           _currentList.sort((a, b) {
-            DateTime dateA =
-                DateTime.tryParse(a['date'] ?? "") ?? DateTime(2020);
-            DateTime dateB =
-                DateTime.tryParse(b['date'] ?? "") ?? DateTime(2020);
-            return dateB.compareTo(dateA);
+            // Firebase tarih formatını kontrol et veya şimdiki zamanı kullan
+            var dateA = a['date'] != null ? DateTime.tryParse(a['date']) : null;
+            var dateB = b['date'] != null ? DateTime.tryParse(b['date']) : null;
+            return (dateB ?? DateTime(2020)).compareTo(dateA ?? DateTime(2020));
           });
           break;
         case SortOption.oldest:
-          _currentList.sort((a, b) {
-            DateTime dateA =
-                DateTime.tryParse(a['date'] ?? "") ?? DateTime(2020);
-            DateTime dateB =
-                DateTime.tryParse(b['date'] ?? "") ?? DateTime(2020);
-            return dateA.compareTo(dateB);
+           _currentList.sort((a, b) {
+            var dateA = a['date'] != null ? DateTime.tryParse(a['date']) : null;
+            var dateB = b['date'] != null ? DateTime.tryParse(b['date']) : null;
+            return (dateA ?? DateTime(2020)).compareTo(dateB ?? DateTime(2020));
           });
           break;
         case SortOption.subject:
@@ -332,7 +344,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
     });
   }
 
-  // --- YENİ EKLENEN KISIM: QUIZ BAŞLATMA ---
+  // --- QUIZ BAŞLATMA ---
   void _startMistakeQuiz() async {
     // Verileri Question Modeline çeviriyoruz
     List<Question> questionList = _currentList.map<Question>((m) {
@@ -343,14 +355,11 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
         answerIndex: m['correctIndex'],
         explanation: m['explanation'] ?? "",
         testNo: 0,
-        // 🔥 DÜZELTME BURADA: "Karışık" yerine m['subject'] kullanıyoruz.
         level: m['subject'] ?? "Genel",
       );
     }).toList();
 
-    // ... kodun devamı aynı ...
-
-    // Quiz ekranına git ve dönmesini bekle
+    // Quiz ekranına git
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -359,6 +368,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
           topic: widget.title,
           questions: questionList,
           userAnswers: null,
+          isReviewMode: false, // Yeni çözüm modu
         ),
       ),
     );
@@ -367,7 +377,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
     _refreshList();
   }
 
-  // --- LİSTEYİ YENİLEME ---
+  // --- LİSTEYİ YENİLEME (FIREBASE'DEN) ---
   Future<void> _refreshList() async {
     var allData = await MistakesService.getMistakes();
     if (mounted) {
@@ -383,7 +393,10 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
     }
   }
 
-  Future<void> _deleteMistake(int id, String subject) async {
+  Future<void> _deleteMistake(Map<String, dynamic> mistake) async {
+    int id = mistake['id'];
+    String subject = mistake['subject'];
+
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -420,12 +433,12 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
     );
 
     if (confirm == true) {
+      // Firebase'den sil
       await MistakesService.removeMistake(id, subject);
 
       if (mounted) {
         setState(() {
-          _currentList
-              .removeWhere((m) => m['id'] == id && m['subject'] == subject);
+          _currentList.removeWhere((m) => m['id'] == id && m['subject'] == subject);
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -456,14 +469,10 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Dark mode kontrolü
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5),
-
-      // --- EKLENEN BUTON ---
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5),
       floatingActionButton: _currentList.isNotEmpty
           ? FloatingActionButton.extended(
               onPressed: _startMistakeQuiz,
@@ -472,7 +481,6 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
               label: const Text("Bu Yanlışları Çöz"),
             )
           : null,
-
       appBar: AppBar(
         title: Text(widget.title,
             style: TextStyle(color: isDark ? Colors.white : Colors.black)),
@@ -597,7 +605,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Chip(
-                    label: Text(mistake['subject'],
+                    label: Text(mistake['subject'] ?? "Ders Yok",
                         style:
                             const TextStyle(fontSize: 10, color: Colors.white)),
                     backgroundColor: Colors.blueGrey,
@@ -623,8 +631,7 @@ class _MistakesListScreenState extends State<MistakesListScreen> {
                     ),
                   ),
                 ElevatedButton.icon(
-                  onPressed: () =>
-                      _deleteMistake(mistake['id'], mistake['subject']),
+                  onPressed: () => _deleteMistake(mistake),
                   icon: const Icon(Icons.check, size: 18),
                   label: const Text("Anladım"),
                   style: ElevatedButton.styleFrom(
