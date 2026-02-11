@@ -57,7 +57,8 @@ class MistakesService {
     }
   }
 
-  // 🔥 YENİ YANLIŞ EKLE
+// lib/services/mistakes_service.dart içinde addMistakes fonksiyonu:
+
   static Future<void> addMistakes(List<Map<String, dynamic>> mistakes) async {
     User? user = _auth.currentUser;
     if (user == null) return;
@@ -69,9 +70,7 @@ class MistakesService {
       int testNo = int.tryParse(mistake['testNo'].toString()) ?? 0;
       int qIndex = int.tryParse(mistake['questionIndex'].toString()) ?? 0;
 
-      if (testNo == 0 && qIndex == 0) {
-        continue; 
-      }
+      if (testNo == 0 && qIndex == 0) continue;
 
       String uniqueId = "${topic}_${testNo}_$qIndex";
       
@@ -88,6 +87,8 @@ class MistakesService {
         'question': mistake['question'],
         'options': mistake['options'] ?? [],
         'correctIndex': mistake['correctIndex'],
+        // 🔥🔥🔥 EKLENEN SATIR BURASI: Kullanıcının cevabını kaydet 🔥🔥🔥
+        'userIndex': mistake['userIndex'], 
         'explanation': mistake['explanation'] ?? "",
         'date': DateTime.now().toIso8601String(),
       };
@@ -97,7 +98,6 @@ class MistakesService {
 
     await batch.commit();
   }
-
   // TEK SİLME İŞLEMİ
   static Future<void> removeMistake(dynamic id, String topic) async {
     User? user = _auth.currentUser;
